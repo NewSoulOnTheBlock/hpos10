@@ -19,7 +19,7 @@ export type Cam = Vec & { z: number }
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
 const SPACING = 170 // distance between neighbouring structures
 const HOLE = 4 // leave the first rings empty around the Hive
-export const ZOOM_MIN = 0.45
+export const ZOOM_MIN = 0.3
 export const ZOOM_MAX = 1.8
 
 function hash(s: string): number {
@@ -72,7 +72,16 @@ export function useCamera(radius: number) {
   useEffect(() => {
     const el = viewport.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => e && setSize({ w: e.contentRect.width, h: e.contentRect.height }))
+    let first = true
+    const ro = new ResizeObserver(([e]) => {
+      if (!e) return
+      setSize({ w: e.contentRect.width, h: e.contentRect.height })
+      // Phones open further out, so the first view shows the swarm, not one creature.
+      if (first) {
+        first = false
+        if (e.contentRect.width < 768) setCam((c) => ({ ...c, z: clamp(e.contentRect.width / 900, ZOOM_MIN, 1) }))
+      }
+    })
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -177,13 +186,44 @@ export function useCamera(radius: number) {
     return () => el.removeEventListener('wheel', onWheel)
   }, [bound])
 
-  // Drag to pan (mouse, pen or one finger). A drag under 5px is a click.
+  // Drag to pan (mouse, pen or one finger), pinch to zoom (two fingers). A drag under 5px is a click.
+  const touches = useRef(new Map<number, Vec>())
+  const pinch = useRef<number | null>(null)
+  const spread = () => {
+    const [a, b] = [...touches.current.values()]
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0
+  }
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
+    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (touches.current.size === 2) {
+      // Second finger: stop panning, start pinching; the gesture never counts as a click.
+      pinch.current = spread()
+      drag.current = null
+      dragged.current = true
+      return
+    }
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }
     dragged.current = false
   }
   const onPointerMove = (e: React.PointerEvent) => {
+    if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinch.current !== null && touches.current.size >= 2) {
+      const d = spread()
+      const ratio = pinch.current > 0 ? d / pinch.current : 1
+      pinch.current = d
+      const r = viewport.current?.getBoundingClientRect()
+      const [a, b] = [...touches.current.values()]
+      if (!r || !a || !b) return
+      const mx = (a.x + b.x) / 2 - r.left - r.width / 2
+      const my = (a.y + b.y) / 2 - r.top - r.height / 2
+      setCam((c) => {
+        const z = clamp(c.z * ratio, ZOOM_MIN, ZOOM_MAX)
+        // Keep the world point between the fingers where it is.
+        return bound({ x: c.x + mx / c.z - mx / z, y: c.y + my / c.z - my / z, z })
+      })
+      return
+    }
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     const dx = e.clientX - d.x
@@ -198,6 +238,8 @@ export function useCamera(radius: number) {
     setCam((c) => bound({ ...c, x: c.x - dx / c.z, y: c.y - dy / c.z }))
   }
   const onPointerUp = (e: React.PointerEvent) => {
+    touches.current.delete(e.pointerId)
+    if (touches.current.size < 2) pinch.current = null
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     dragged.current = d.moved

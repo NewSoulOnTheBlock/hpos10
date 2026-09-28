@@ -228,12 +228,12 @@ export function CreepMap() {
     : 'url(/cursors/arrow.png) 0 0, default'
 
   return (
-    <div className="game-cursor relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black md:h-dvh" style={{ cursor }}>
+    <div className="game-cursor relative flex h-dvh min-h-0 flex-1 flex-col overflow-hidden bg-black" style={{ cursor }}>
       {/* ---- The map: an endless creep you can drag, scroll and zoom ---- */}
       <div
         ref={viewport}
         {...handlers}
-        className="relative h-[64dvh] w-full touch-none select-none overflow-hidden md:absolute md:inset-0 md:h-auto"
+        className="absolute inset-0 touch-none select-none overflow-hidden"
       >
         {/* Ground: the tiled map texture, scrolled with the camera. */}
         <div
@@ -298,6 +298,7 @@ export function CreepMap() {
               at={places.get(t.mint)!}
               selected={t.mint === selected || grouped.some((g) => g.mint === t.mint)}
               onSelect={() => !wasDrag() && select(t.mint)}
+              zoom={cam.z}
             />
           ))}
         </div>
@@ -312,7 +313,7 @@ export function CreepMap() {
       <Resources />
 
       {/* ---- Notices, under the resources ---- */}
-      <div className="pointer-events-none absolute right-3 top-[70px] z-20 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2">
+      <div className="pointer-events-none absolute right-2 top-[60px] z-20 flex w-72 max-w-[calc(100%-1rem)] flex-col gap-2 sm:right-3 sm:top-[70px] sm:w-80">
         <MorphCall />
         {notices.map((n) => (
           <div key={n.id} className="animate-notify kit-tooltip pointer-events-auto p-3">
@@ -331,9 +332,9 @@ export function CreepMap() {
       </div>
 
       {/* ---- The bottom HUD (frames cut from the licensed HUD kit, see scripts/hud-kit-*.py) ---- */}
-      <div className="relative z-10 mt-auto grid items-end gap-1 bg-black p-2 md:absolute md:inset-x-0 md:bottom-0 md:grid-cols-[250px_minmax(0,1fr)_176px_262px] md:bg-[linear-gradient(0deg,#000_0,#000_55%,transparent)] md:px-2 md:pb-1 md:pt-10">
-        {/* Minimap with F1/F2 and the game clock above it. */}
-        <div className="relative h-[230px]">
+      <div className="absolute inset-x-0 bottom-0 z-10 grid items-end gap-1 bg-[linear-gradient(0deg,#000_0,#000_60%,transparent)] px-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-6 md:grid-cols-[250px_minmax(0,1fr)_176px_262px] md:bg-[linear-gradient(0deg,#000_0,#000_55%,transparent)] md:px-2 md:pb-1 md:pt-10">
+        {/* Minimap with F1/F2 and the game clock above it (desktop; on a phone you drag the map). */}
+        <div className="relative hidden h-[230px] md:block">
           <div className="absolute -top-8 left-2 hidden gap-1 md:flex">
             <Link href="/" className="kit-small kit-slot kit-amber size-7 font-display text-[11px] font-bold" title="F1: the creep">
               F1
@@ -348,8 +349,8 @@ export function CreepMap() {
           </div>
         </div>
 
-        {/* Info panel with the control groups on its top edge. */}
-        <div className="relative h-[200px] min-w-0">
+        {/* Info panel with the control groups on its top edge. On a phone only while something is selected. */}
+        <div className={cn('relative h-[176px] min-w-0 md:block md:h-[200px]', !token && !group && 'hidden')}>
           <div className="absolute -top-7 left-8 z-10 hidden gap-1 md:flex">
             {GROUPS.map((g) => {
               const n = tokens.filter((t) => g.kinds.includes(mobOf(t))).length
@@ -367,7 +368,7 @@ export function CreepMap() {
               )
             })}
           </div>
-          <div className="kit-frame kit-info flex size-full px-[30px] py-[22px]">
+          <div className="kit-frame kit-info flex size-full px-[22px] py-[18px] md:px-[30px] md:py-[22px]">
             <SelectionPanel token={token} group={grouped} symbol={symbol} hatched={hatched === token?.mint} onPick={select} />
           </div>
         </div>
@@ -379,8 +380,27 @@ export function CreepMap() {
           </div>
         </div>
 
+        {/* Phone: one row of commands plus the menu. */}
+        <div className="flex items-center justify-between gap-1 md:hidden">
+          {commands
+            .filter((c) => c.key !== 'Esc' && c.key !== 'H')
+            .map((c) => {
+              const cls = cn('kit-btn size-10 shrink-0', c.framed && '!bg-none', c.disabled && 'pointer-events-none opacity-40')
+              return c.href && !c.disabled ? (
+                <Link key={c.label} href={c.href} className={cls} aria-label={c.hint}>
+                  {c.icon}
+                </Link>
+              ) : (
+                <button key={c.label} type="button" onClick={c.onClick} disabled={c.disabled} className={cls} aria-label={c.hint}>
+                  {c.icon}
+                </button>
+              )
+            })}
+          <button type="button" onClick={() => setMenu(true)} className="kit-small size-10 shrink-0 bg-[url(/hud/sb-menu.webp)]" aria-label="Menu" />
+        </div>
+
         {/* Command panel: 3x3 kit buttons, the tooltip line and the menu row above it. */}
-        <div className="relative h-[210px]">
+        <div className="relative hidden h-[210px] md:block">
           <div className="absolute -top-9 right-1 hidden items-center gap-1 md:flex">
             <Link href="/docs" className="kit-small size-8 bg-[url(/hud/sb-alert.webp)]" aria-label="Help: the manual" />
             <Link href="/board" className="kit-small size-8 bg-[url(/hud/sb-chat.webp)]" aria-label="Comms: the swarm list" />
@@ -448,7 +468,7 @@ function HpBar({ value, segments = 10, tone = 'on' }: { value: number; segments?
 }
 
 /** One token on the map, as a mob. Plays the transformation when it grows (curl into an egg, a hatch, a bigger creature). */
-function MapMob({ token, at, selected, onSelect }: { token: TokenDTO; at: Vec; selected: boolean; onSelect: () => void }) {
+function MapMob({ token, at, selected, onSelect, zoom }: { token: TokenDTO; at: Vec; selected: boolean; onSelect: () => void; zoom: number }) {
   const mob = mobOf(token)
   const prev = useRef(mob)
   const [grow, setGrow] = useState(0)
@@ -490,28 +510,33 @@ function MapMob({ token, at, selected, onSelect }: { token: TokenDTO; at: Vec; s
       style={{ left: at.x, top: at.y }}
     >
       <HpBar value={hp} segments={HP_SEGMENTS[mob]} tone={life === 'RUGGED' ? 'on-dead' : mob === 'hatching' ? 'on-warn' : 'on'} />
-      {/* Always-on name plate above the health bar. */}
+      {/* Labels above the health bar: HPOS10I paid out, then the name. Zoomed out they grow
+          back (up to 2x) so they stay readable. */}
       <span
-        className={cn(
-          'kit-amber absolute -top-6 max-w-[160px] truncate whitespace-nowrap rounded-[2px] bg-black/75 px-1.5 py-px font-mono text-[11px] leading-tight group-hover:bg-black/90',
-          selected && 'sc-text ring-1 ring-[#3dff6a]/60',
-          life === 'RUGGED' && '!text-[#ff4a3d] ring-1 ring-[#f40000]/60',
-          life === 'DEAD' && '!text-foreground/50',
-        )}
+        className="pointer-events-none absolute bottom-full left-1/2 mb-1 flex flex-col items-center gap-0.5"
+        style={{ transform: `translateX(-50%) scale(${Math.min(2, Math.max(1, 1 / zoom))})`, transformOrigin: '50% 100%' }}
       >
-        {life === 'RUGGED' && '☠ '}${token.symbol}
-        {life !== 'ALIVE' && <span className="opacity-80"> · {life}</span>}
-      </span>
-      {/* Paid out so far, above the name. */}
-      <span
-        className={cn(
-          'absolute -top-11 flex items-center gap-1 whitespace-nowrap rounded-[2px] bg-black/70 px-1.5 py-px font-mono text-[10px] leading-tight',
-          paid > 0 ? 'text-[#3dff6a]' : 'text-foreground/45',
-        )}
-        title={`${paid.toLocaleString()} HPOS10I paid out by this token`}
-      >
-        <QuoteIcon className="size-3" />
-        {paid > 0 ? `+${formatCompact(paid)}` : '0'} paid
+        <span
+          className={cn(
+            'flex items-center gap-1 whitespace-nowrap rounded-[2px] bg-black/70 px-1.5 py-px font-mono text-[10px] leading-tight',
+            paid > 0 ? 'text-[#3dff6a]' : 'text-foreground/45',
+          )}
+          title={`${paid.toLocaleString()} HPOS10I paid out by this token`}
+        >
+          <QuoteIcon className="size-3" />
+          {paid > 0 ? `+${formatCompact(paid)}` : '0'} paid
+        </span>
+        <span
+          className={cn(
+            'kit-amber max-w-[160px] truncate whitespace-nowrap rounded-[2px] bg-black/75 px-1.5 py-px font-mono text-[11px] leading-tight group-hover:bg-black/90',
+            selected && 'sc-text ring-1 ring-[#3dff6a]/60',
+            life === 'RUGGED' && '!text-[#ff4a3d] ring-1 ring-[#f40000]/60',
+            life === 'DEAD' && '!text-foreground/50',
+          )}
+        >
+          {life === 'RUGGED' && '☠ '}${token.symbol}
+          {life !== 'ALIVE' && <span className="opacity-80"> · {life}</span>}
+        </span>
       </span>
       {/* Flyers hover (mob-fly), so leave them headroom under the health bar. */}
       <span className={cn('relative mt-1 block transition-transform group-hover:scale-105 group-focus-visible:scale-105', FLYERS.has(mob) && life === 'ALIVE' && 'mt-9')} style={{ width: SIZE[mob] }}>
@@ -658,24 +683,24 @@ function SelectionPanel({ token, group, symbol, hatched, onPick }: { token: Toke
   const mob = mobOf(token)
   const hp = token.status === 'CURVE' ? token.progress : 1
   return (
-    <div className="grid flex-1 grid-cols-[100px_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[130px_minmax(0,1fr)]">
+    <div className="grid min-w-0 flex-1 grid-cols-[64px_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
       <div className="flex flex-col items-center">
         <MobSprite mob={mob} still className="wireframe w-full max-w-[110px]" />
-        <p className="sc-text mt-1 font-mono text-sm">{Math.round(hp * 1000)} / 1000</p>
+        <p className="sc-text mt-1 font-mono text-[11px] sm:text-sm">{Math.round(hp * 1000)} / 1000</p>
       </div>
-      <div className="flex min-w-0 flex-col items-center gap-1.5 text-center">
-        <p className="sc-text truncate font-display text-xl font-bold">
+      <div className="flex min-w-0 flex-col items-center gap-1 text-center sm:gap-1.5">
+        <p className="sc-text max-w-full truncate font-display text-base font-bold sm:text-xl">
           {MOB_LABEL[mob]} <span className="kit-amber">${token.symbol}</span>
         </p>
-        <p className="max-w-full truncate text-sm text-foreground/80">{token.name}</p>
+        <p className="max-w-full truncate text-xs text-foreground/80 sm:text-sm">{token.name}</p>
         {hatched && <p className="sc-text font-mono text-xs">Your egg is gestating. Feed it and it will grow.</p>}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-0.5 font-mono text-sm lg:grid-cols-3">
+        <dl className="grid max-w-full grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-xs sm:gap-x-6 sm:text-sm lg:grid-cols-3">
           <Readout k="MC" v={token.marketCapUsd !== null ? formatUsd(token.marketCapUsd) : `${formatCompact(token.marketCapQuote)} ${symbol}`} />
           <Readout k="Holders" v={String(token.holders)} />
           <Readout k="Morph" v={token.status === 'CURVE' ? `${(token.progress * 100).toFixed(1)}%` : token.status === 'COMPLETE' ? 'mutating' : 'done'} />
           <Readout k="24h" v={`${formatCompact(token.volume24hQuote)} ${symbol}`} />
-          <Readout k="Creator" v={formatCompact(token.creatorEarnedQuote)} icon />
-          <Readout k="CA" v={shortAddress(token.mint)} />
+          <Readout k="Creator" v={formatCompact(token.creatorEarnedQuote)} icon wide />
+          <Readout k="CA" v={shortAddress(token.mint)} wide />
           <Readout k="Dev sold" v={`${Math.round((token.creatorSold ?? 0) * 100)}%`} />
         </dl>
         {token.lifeState === 'RUGGED' && <p className="font-mono text-sm font-bold text-[#ff4a3d]">☠ RUGGED: the creator dumped and it collapsed.</p>}
@@ -685,9 +710,9 @@ function SelectionPanel({ token, group, symbol, hatched, onPick }: { token: Toke
   )
 }
 
-function Readout({ k, v, icon }: { k: string; v: string; icon?: boolean }) {
+function Readout({ k, v, icon, wide }: { k: string; v: string; icon?: boolean; wide?: boolean }) {
   return (
-    <div className="flex min-w-0 items-baseline justify-center gap-1.5">
+    <div className={cn('min-w-0 items-baseline justify-center gap-1.5', wide ? 'hidden sm:flex' : 'flex')}>
       <dt className="shrink-0 text-foreground/60">{k}:</dt>
       <dd className="flex min-w-0 items-center gap-1 truncate text-foreground">
         {icon && <QuoteIcon className="size-3.5" />}
@@ -743,7 +768,8 @@ function MorphCall() {
     if (pending && publicKey) router.push('/create')
   }, [pending, publicKey, router])
   return (
-    <div className="kit-tooltip pointer-events-auto flex items-center gap-3 p-3">
+    // Phones: hidden (it covered the map); the Morph command in the bottom row does the same job.
+    <div className="kit-tooltip pointer-events-auto hidden items-center gap-3 p-3 sm:flex">
       <Link href="/create" className="cursor-select shrink-0" aria-hidden tabIndex={-1}>
         <LarvaSprite className="w-16" />
       </Link>

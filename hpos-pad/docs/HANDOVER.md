@@ -180,33 +180,46 @@ Gotchas:
 - Surfpool reports block times near 1970, so a token on the fork reads DEAD. The vitals check only asserts "not RUGGED".
 - Local ports are 5435/6382, because TronPad's dev containers hold 5434/6381.
 
-## Deploy (in progress, 2026-09-29)
+## Mainnet launch setup (2026-09-29)
 
-- Server `root@64.111.93.209`. DNS for `thehatchery.site`, `www` and `api` already points at it. SSH needs the owner to run `ssh-copy-id` first (key auth was refused).
+- **DBC config (mainnet): `5EEj9Y9pvXGFa5GN27NS2ijFSpZuHLKCLgg1WgjaDaXb`.**
+  - Settings: HPOS10I quote, 1.6% fee, curve 150k → 2M HPOS10I, graduation at 429,970.33 HPOS10I, then DAMM v2 with 100% partner-locked LP.
+  - Created with tx `5ibMk13Y8Wz6Pe2Hyed6wE8gFgJsK8FtN2UuQbtSFKPjnNqX5WD1LtPdVrAPeXfCYsg2bwTRkzBnSxGGZy79saUv`, and verified on chain.
+- Fee claimer: `DGjmjAoCdGSrF4dk6yNsbRykF2MaR3Kihx5zRVwQv4k2` (`keys/fee-claimer.json`). Treasury (the owner's wallet): `AQ4L9t3yTsY7jJeJd4gxdaNKJTkLPkYGR2ka2LhtH4EM`.
+- `.env`:
+  - The local `hpos-pad/.env` is the production env: `NODE_ENV=production`, RPC and Pinata reused from TronPad, freshly generated `VANITY_ENCRYPTION_KEY`/`SIGNER_TOKEN`, deploy vars at the bottom.
+  - It is copied by hand to `/opt/hpospad/.env` (600); `deploy.sh` never ships it.
+- Server `root@64.111.93.209`:
+  - Ubuntu 24.04, Docker 29, key auth from this Mac; ufw inactive.
+  - `DEPLOY_HOST=root@64.111.93.209 ./scripts/deploy.sh` rsyncs to `/opt/hpospad` and runs `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. That starts postgres, redis, migrate, api, chain-indexer, chain-service, web and caddy.
 - Caddy:
-  - api: `{$API_DOMAIN}` in `docker/Caddyfile`, so the server `.env` needs `API_DOMAIN=api.thehatchery.site`;
-  - web: `docker/sites/web.caddy` serves `thehatchery.site` and redirects `www` to it.
-- Web build args:
-  - `NEXT_PUBLIC_API_URL=https://api.thehatchery.site`
-  - `NEXT_PUBLIC_WS_URL=wss://api.thehatchery.site/ws`
-  - `NEXT_PUBLIC_RPC_URL` empty (the api's `/rpc` proxy).
-- CORS: `CORS_ORIGINS=https://thehatchery.site,https://www.thehatchery.site`.
-- Fee claimer created: `keys/fee-claimer.json` = `DGjmjAoCdGSrF4dk6yNsbRykF2MaR3Kihx5zRVwQv4k2` (unfunded).
-- Blocked on the owner:
-  - SSH access;
-  - ~0.1 SOL to the fee claimer;
-  - the treasury address;
-  - Helius and Pinata keys (reuse TronPad's or new);
-  - approval of the mainnet `config:create` simulation.
+  - `api.thehatchery.site` (`API_DOMAIN`) goes to api:3001.
+  - `docker/sites/web.caddy`: `thehatchery.site` goes to web:3000; `www` redirects to it.
+- Not done yet:
+  - no vanity keys (launches fall back to random mints; `pnpm vanity:grind` / `vanity:import`);
+  - `OFFICIAL_MINT` / `FEATURED_MINTS` empty (the Hive in the middle has no platform token until one is launched and set).
 
-  The backend can't start without `DBC_CONFIG`.
+## Mobile + vanity (2026-09-29)
+- Mobile creep, deployed:
+  - The map is full-screen (`h-dvh`, map `absolute inset-0`).
+  - The bottom HUD is an overlay. On phones: no minimap; the info panel only while something is selected; one row of commands plus Menu (`md:hidden`). The desktop 3×3 command card is `hidden md:block`.
+  - "A larva awaits" is hidden under `sm`.
+  - The camera opens at `z = width/900` on phones, `ZOOM_MIN` is 0.3, and two-finger pinch zoom is in `camera.ts`.
+  - Name and "paid" labels counter-scale up to 2× when zoomed out.
+  - The trades table drops the base-amount and price columns on phones.
+- Phone screenshots: headless Chrome's `--window-size` can't go below ~500px, so use CDP device emulation. The session scratchpad `mshot.mjs` does this: `Emulation.setDeviceMetricsOverride` with `mobile: true`.
+- Vanity:
+  - 20 `…hpos` mints were imported on the server (`push-vanity.sh`).
+  - A local loop grinds 250 more and pushes every 20 (scratchpad `vanity-loop.sh`, log `vanity-loop.log`).
+  - Check with `docker compose … exec chain-service node dist/scripts/vanity.js status` on the server.
+- Owner to-dos: top up the fee claimer to ~0.5 SOL; do a real mainnet test launch; pick the platform token for `OFFICIAL_MINT`.
 
 ## Next ideas (not started)
 - The partner's wider idea: "an RTS: mines produce energy, energy builds buildings, barracks produce enemies, like v1 League of Legends". Clarify before building.
 - Mobs could wander a little around their spot (the drone already does). Rugged larvae/eggs could use rug.png's larva-death row instead of the egg burst.
 
 ## Open decisions for the owner
-- Keys and config: nothing created yet. Step by step (in Turkish, for the owner) in `docs/CONFIG.md`: new fee claimer in `keys/`, treasury address only, `pnpm config:create`. The curve was shrunk at the owner's request (2026-09-29) to 150k → 2M HPOS10I (~$2.4k → ~$32.6k market cap, ~$7k raised = ~15% of HPOS10I's ~$47k Solana liquidity; options table in CONFIG.md). Watch for the port clash if it is deployed next to TronPad.
+- Keys and config: done (see Mainnet launch setup). Background (in Turkish, for the owner) in `docs/CONFIG.md`: new fee claimer in `keys/`, treasury address only, `pnpm config:create`. The curve was shrunk at the owner's request (2026-09-29) to 150k → 2M HPOS10I (~$2.4k → ~$32.6k market cap, ~$7k raised = ~15% of HPOS10I's ~$47k Solana liquidity; options table in CONFIG.md). Watch for the port clash if it is deployed next to TronPad.
 - Domains: web `thehatchery.site` (+ `www`, redirected), api `api.thehatchery.site`, server `64.111.93.209` (2026-09-29). Socials are set: X `@hpos10ireturns`, Telegram `t.me/hpos10i` (`lib/constants.ts`).
 - Morph (launch) fee: currently free. `POOL_CREATION_FEE_SOL` is immutable in the config.
 - "Bundle wallets": declined as a hidden feature; they could be shown transparently.

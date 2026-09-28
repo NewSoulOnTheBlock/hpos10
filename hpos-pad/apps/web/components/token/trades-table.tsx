@@ -31,7 +31,7 @@ export function TradesTable({ token }: { token: TokenDTO }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="kit-well overflow-x-auto">
-        <table className="w-full min-w-[620px] font-mono text-sm">
+        <table className="w-full font-mono text-xs sm:min-w-[620px] sm:text-sm">
           <thead className={THEAD}>
             <tr>
               <th className={TH}>Trader</th>
@@ -41,8 +41,9 @@ export function TradesTable({ token }: { token: TokenDTO }) {
                   <QuoteIcon className="size-3.5" /> {q}
                 </span>
               </th>
-              <th className={cn(TH, 'text-right')}>{token.symbol}</th>
-              <th className={cn(TH, 'text-right')}>Price</th>
+              {/* Phones: trader, side, quote and age only. */}
+              <th className={cn(TH, 'hidden text-right sm:table-cell')}>{token.symbol}</th>
+              <th className={cn(TH, 'hidden text-right sm:table-cell')}>Price</th>
               <th className={cn(TH, 'text-right')}>Age</th>
             </tr>
           </thead>
@@ -63,8 +64,8 @@ export function TradesTable({ token }: { token: TokenDTO }) {
                 <td className={cn('px-3 py-2 text-right tabular-nums', t.side === 'BUY' ? 'text-phosphor-bright' : 'text-foreground')}>
                   {formatAmount(t.quoteAmount)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCompact(t.baseAmount)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatPrice(t.priceQuote)}</td>
+                <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{formatCompact(t.baseAmount)}</td>
+                <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">{formatPrice(t.priceQuote)}</td>
                 <td className="px-3 py-2 text-right">
                   <ExternalTx href={solscanTx(t.signature, config?.cluster)}>{timeAgo(t.blockTime)}</ExternalTx>
                 </td>
