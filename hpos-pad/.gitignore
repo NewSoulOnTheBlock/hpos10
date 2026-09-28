@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+# Every env variant (backups, per-host copies) may hold secrets; only the example is shared.
+.env.*
+!.env.example
+*.log
+.DS_Store
+keys/
+*.tsbuildinfo
+logs/

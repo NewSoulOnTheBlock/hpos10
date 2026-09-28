@@ -1,0 +1,48 @@
+{
+  "name": "@hpos-pad/chain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "indexer": "node dist/indexer.js",
+    "service": "node dist/service.js",
+    "dev": "concurrently -n indexer,service \"tsx watch src/indexer.ts\" \"tsx watch src/service.ts\"",
+    "dev:indexer": "tsx watch src/indexer.ts",
+    "dev:service": "tsx watch src/service.ts",
+    "config:create": "tsx src/scripts/create-config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "treasury": "tsx src/scripts/treasury.ts",
+    "token:hide": "tsx src/scripts/token-visibility.ts hide",
+    "token:show": "tsx src/scripts/token-visibility.ts show",
+    "test:fork": "tsx src/scripts/e2e-fork.ts",
+    "vanity:grind": "tsx src/scripts/vanity.ts grind",
+    "vanity:import": "tsx src/scripts/vanity.ts import",
+    "vanity:status": "tsx src/scripts/vanity.ts status"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@meteora-ag/cp-amm-sdk": "^1.5.0",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.13",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.4",
+    "@triton-one/yellowstone-grpc": "^7.0.1",
+    "@hpos-pad/db": "workspace:*",
+    "@hpos-pad/shared": "workspace:*",
+    "bn.js": "^5.2.2",
+    "bs58": "^6.0.0",
+    "ioredis": "^5.6.0",
+    "pino": "^9.6.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/node": "^22.15.0",
+    "concurrently": "^9.1.2",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^4.0.18"
+  }
+}

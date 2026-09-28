@@ -1,0 +1,25 @@
+{
+  "name": "hpos-pad",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "pnpm --filter @hpos-pad/shared build && pnpm --filter @hpos-pad/db build && pnpm -r --filter './apps/*' build",
+    "dev": "pnpm --filter @hpos-pad/shared build && pnpm --filter @hpos-pad/db build && pnpm -r --parallel --filter './apps/*' --filter @hpos-pad/shared dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @hpos-pad/db db:generate",
+    "db:push": "pnpm --filter @hpos-pad/db db:push",
+    "config:create": "pnpm --filter @hpos-pad/chain config:create",
+    "infra:up": "docker compose up -d postgres redis",
+    "treasury": "pnpm --filter @hpos-pad/chain treasury",
+    "token:hide": "pnpm --filter @hpos-pad/chain token:hide",
+    "token:show": "pnpm --filter @hpos-pad/chain token:show",
+    "vanity:grind": "pnpm --filter @hpos-pad/chain vanity:grind",
+    "vanity:import": "pnpm --filter @hpos-pad/chain vanity:import",
+    "vanity:status": "pnpm --filter @hpos-pad/chain vanity:status",
+    "test:fork": "pnpm --filter @hpos-pad/chain test:fork"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,296 @@
+// The Hatchery schema. One database shared by apps/api (reads) and apps/chain
+// (indexer + service, writes). Raw on-chain u64 amounts are stored as
+// Decimal(40,0) so nothing passes through a float.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TokenStatus {
+  CURVE
+  COMPLETE
+  MIGRATED
+}
+
+enum LifeState {
+  ALIVE
+  DEAD
+  RUGGED
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+enum Venue {
+  DBC
+  DAMM_V2
+}
+
+enum EpochStatus {
+  CLAIMED
+  DISTRIBUTING
+  DONE
+  FAILED
+}
+
+model Token {
+  mint                String      @id
+  pool                String      @unique
+  dammPool            String?     @unique
+  config              String
+  creator             String
+  name                String
+  symbol              String
+  uri                 String
+  description         String?
+  imageUrl            String?
+  website             String?
+  twitter             String?
+  telegram            String?
+  status              TokenStatus @default(CURVE)
+  createdAt           DateTime
+  createdSignature    String
+  migratedAt          DateTime?
+  migrationSignature  String?
+
+  // Live state, maintained by the indexer from swap events.
+  priceQuote          Float       @default(0)
+  marketCapQuote      Float       @default(0)
+  quoteReserve        Decimal     @default(0) @db.Decimal(40, 0)
+  migrationThreshold  Decimal     @default(0) @db.Decimal(40, 0)
+  lastTradeAt         DateTime?
+  /// slot * 1000 + eventIndex of the trade that set priceQuote. Events can
+  /// arrive out of order (live stream vs backfill); only newer ones win.
+  lastTradeSeq        BigInt      @default(0)
+  athMarketCapQuote   Float       @default(0)
+  /// DAMM v2 orientation after migration: true when token A is the base mint.
+  dammBaseIsA         Boolean     @default(true)
+
+  // Rolled up by the service every minute.
+  volume24hQuote      Decimal     @default(0) @db.Decimal(40, 0)
+  trades24h           Int         @default(0)
+  priceChange24h      Float?
+  holders             Int         @default(0)
+
+  /// Every fee traders paid on this token (all recipients), rolled up by the service.
+  feesTotalQuote      Decimal     @default(0) @db.Decimal(40, 0)
+
+  // Reflection ledger totals.
+  reflectedTotalQuote Decimal     @default(0) @db.Decimal(40, 0)
+  /// Creator share paid to `creator` so far.
+  creatorEarnedQuote  Decimal     @default(0) @db.Decimal(40, 0)
+  carryQuote          Decimal     @default(0) @db.Decimal(40, 0)
+
+  hidden              Boolean     @default(false)
+  updatedAt           DateTime    @updatedAt
+
+  /// Life watch (apps/chain jobs/vitals.ts, rules in packages/shared vitals.ts).
+  peakVolume24hQuote  Decimal     @default(0) @db.Decimal(40, 0)
+  peakHolders         Int         @default(0)
+  creatorBoughtBase   Decimal     @default(0) @db.Decimal(40, 0)
+  creatorSoldBase     Decimal     @default(0) @db.Decimal(40, 0)
+  lifeState           LifeState   @default(ALIVE)
+  lifeStateAt         DateTime?
+
+  trades              Trade[]
+  candles             Candle[]
+  epochs              ReflectionEpoch[]
+  holderRows          Holder[]
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([volume24hQuote])
+  @@index([marketCapQuote])
+  @@index([lastTradeAt])
+  @@index([creator])
+}
+
+/// Metadata the creator submitted through /launch/build, merged when the
+/// indexer sees the pool land. Tokens launched against the config from
+/// elsewhere still index; they just fall back to on-chain metadata.
+model LaunchDraft {
+  mint        String   @id
+  creator     String
+  name        String
+  symbol      String
+  uri         String
+  description String?
+  imageUrl    String?
+  website     String?
+  twitter     String?
+  telegram    String?
+  createdAt   DateTime @default(now())
+}
+
+model Trade {
+  id          BigInt    @id @default(autoincrement())
+  signature   String
+  /// Position of the event within the transaction; (signature, eventIndex) is the idempotency key.
+  eventIndex  Int
+  mint        String
+  trader      String
+  side        TradeSide
+  venue       Venue
+  baseAmount  Decimal   @db.Decimal(40, 0)
+  quoteAmount Decimal   @db.Decimal(40, 0)
+  feeQuote    Decimal   @db.Decimal(40, 0)
+  priceQuote  Float
+  slot        BigInt
+  blockTime   DateTime
+
+  token       Token     @relation(fields: [mint], references: [mint])
+
+  @@unique([signature, eventIndex])
+  @@index([mint, blockTime(sort: Desc)])
+  @@index([trader, blockTime(sort: Desc)])
+  @@index([blockTime])
+}
+
+model Candle {
+  mint        String
+  timeframe   String
+  bucket      DateTime
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volumeQuote Decimal  @db.Decimal(40, 0)
+  trades      Int
+  /// Ordering keys (slot * 1000 + eventIndex) so out-of-order inserts keep
+  /// open = earliest trade and close = latest trade in the bucket.
+  openSeq     BigInt
+  closeSeq    BigInt
+
+  token       Token    @relation(fields: [mint], references: [mint])
+
+  @@id([mint, timeframe, bucket])
+}
+
+model Holder {
+  mint      String
+  owner     String
+  amount    Decimal  @db.Decimal(40, 0)
+  updatedAt DateTime @updatedAt
+
+  token     Token    @relation(fields: [mint], references: [mint])
+
+  @@id([mint, owner])
+  @@index([mint, amount(sort: Desc)])
+  @@index([owner])
+}
+
+/// One claim-and-distribute cycle for one token. The ledger is the proof
+/// that reflections are paid: every claimed unit is either distributed,
+/// carried to the next epoch, or sent to the treasury as the platform share.
+model ReflectionEpoch {
+  id              String      @id @default(cuid())
+  mint            String
+  status          EpochStatus
+  venue           Venue
+  claimedQuote    Decimal     @db.Decimal(40, 0)
+  holdersQuote    Decimal     @db.Decimal(40, 0)
+  platformQuote   Decimal     @db.Decimal(40, 0)
+  /// Paid to the wallet that launched the token.
+  creatorQuote    Decimal     @default(0) @db.Decimal(40, 0)
+  creatorSignature String?
+  /// Carry from previous epochs that was added to this epoch's pot.
+  carryInQuote    Decimal     @db.Decimal(40, 0)
+  distributedQuote Decimal    @default(0) @db.Decimal(40, 0)
+  carriedQuote    Decimal     @default(0) @db.Decimal(40, 0)
+  recipients      Int         @default(0)
+  claimSignatures String[]
+  platformSignature String?
+  /// Part of the platform share kept in the vault instead of sent to the
+  /// treasury: to cover a vault shortfall first, then to buy SOL for gas.
+  platformRetainedQuote Decimal @default(0) @db.Decimal(40, 0)
+  error           String?
+  createdAt       DateTime    @default(now())
+  finishedAt      DateTime?
+
+  token           Token       @relation(fields: [mint], references: [mint])
+  payouts         ReflectionPayout[]
+
+  @@index([mint, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+model ReflectionPayout {
+  id         BigInt          @id @default(autoincrement())
+  epochId    String
+  mint       String
+  owner      String
+  amount     Decimal         @db.Decimal(40, 0)
+  signature  String?
+  createdAt  DateTime        @default(now())
+
+  epoch      ReflectionEpoch @relation(fields: [epochId], references: [id])
+
+  @@unique([epochId, owner])
+  @@index([owner, createdAt(sort: Desc)])
+  @@index([mint, createdAt(sort: Desc)])
+}
+
+enum ClaimStatus {
+  PENDING
+  LANDED
+  EXPIRED
+}
+
+/// A holder withdrawing their accrued reflections (all tokens, one transfer).
+/// Reflection payouts are accruals: a ReflectionPayout with no signature in a
+/// DONE epoch is owed to its owner. claimable(owner) = accrued - claims that
+/// are PENDING or LANDED. A PENDING claim reserves its amount until its
+/// blockhash expires; then it is LANDED (verified on-chain) or EXPIRED.
+model Claim {
+  id                   String      @id @default(cuid())
+  owner                String
+  amount               Decimal     @db.Decimal(40, 0)
+  status               ClaimStatus
+  signature            String?
+  /// 0 until the signer signs it; then the expiry of that one transaction.
+  lastValidBlockHeight BigInt
+  /// The partially signed transaction, returned again if the claimant retries before it expires.
+  transaction          String?
+  createdAt            DateTime    @default(now())
+  settledAt            DateTime?
+
+  @@index([owner, status])
+  @@index([status, createdAt])
+}
+
+/// Where each ingestion source got to, so a restart backfills exactly the gap.
+model IndexerCursor {
+  id        String   @id
+  signature String
+  slot      BigInt
+  updatedAt DateTime @updatedAt
+}
+
+/// Key/value for small service state (quote USD price, locks, etc).
+model KeyValue {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Pre-generated mint keypairs with a vanity suffix (e.g. ...hpos). The
+/// secret is AES-256-GCM encrypted with VANITY_ENCRYPTION_KEY. A mint keypair
+/// has no authority after the pool is created; it only proves the address.
+model VanityMint {
+  pubkey     String    @id
+  /// base64(iv | tag | ciphertext) of the 64-byte secret key.
+  secret     String
+  reservedAt DateTime?
+  reservedBy String?
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([usedAt, reservedAt])
+}

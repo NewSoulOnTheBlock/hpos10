@@ -1,0 +1,431 @@
+/* ---- The HUD kit, applied to every screen that is not the creep ----------------
+   The creep (/) is built directly from the licensed HUD kit (public/hud/*.webp,
+   see the .kit-* rules in globals.css). These rules dress the shared primitives
+   and the other screens in the same parts: gunmetal frames with amber trim and
+   light strips, black screens, amber titles, green readouts, orange plates.
+
+   .kit-panel        9-slice of /hud/info.webp around a black screen (Card)
+   .kit-panel-head   the amber stencil title plate on the panel's top edge
+   .kit-screen       the black screen inside a panel
+   .kit-button       9-slice of the /hud/btn-*.webp plates (Button)
+   .kit-well         a black slot with a thin gunmetal rim (inputs, readouts)
+   .kit-field        a black input slot with green mono text
+   .kit-toggle       a key in a segmented rail; lit when pressed/current/active
+   .kit-topbar       the top HUD strip on non-creep screens (GameBar)
+   .kit-dialog       the amber-bordered black transmission panel (Dialog)      */
+
+/* Retint the theme tokens everywhere, the creep included, so dialogs opened over the
+   map (the trade panel) match the kit too. */
+:root {
+  --foreground: #e6e1d6;
+  --card: #000;
+  --popover: #050505;
+  --primary: #f0a818;
+  --primary-foreground: #1a0e00;
+  --secondary: #17150f;
+  --muted: #15130f;
+  --muted-foreground: #a59d8c;
+  --accent: #2a1d08;
+  --border: #3a3631;
+  --input: #3a3631;
+  --ring: #f0a818;
+  --phosphor: #3dff6a;
+  --phosphor-bright: #8dffa6;
+  --phosphor-deep: #0d4a1c;
+  --cyan: #f0a818;
+  --amber: #f0a818;
+  --sonic: #feeb00;
+  --steel-dark: #121212;
+  --steel: #1b1b1c;
+  --steel-mid: #28282a;
+  --steel-light: #3e3a35;
+  --steel-edge: #6b6254;
+  --bezel: #0a0a0a;
+}
+:root body {
+  background-color: #000;
+  background-image:
+    radial-gradient(ellipse 70% 40% at 50% -8%, rgb(240 168 24 / 0.07), transparent 65%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'%3E%3Cpath d='M28 0 56 16.2v32.3L28 64.7 0 48.5V16.2ZM28 64.7V97' fill='none' stroke='%23121110' stroke-width='1'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, #050505 0%, #000 100%);
+}
+:root ::selection {
+  background: rgb(240 168 24 / 0.35);
+  color: #fff3c4;
+}
+
+@layer components {
+  /* ---- Text ---------------------------------------------------------------- */
+  /* Secondary accent (token symbols, addresses): HPOS glove yellow. */
+  .kit-cyan {
+    color: #ffd84a;
+    text-shadow: 0 0 6px rgb(254 235 0 / 0.4);
+  }
+  .kit-stencil {
+    color: #c9b48a;
+    text-shadow: 0 1px 0 #000;
+  }
+  .kit-title {
+    font-family: var(--font-oxanium), system-ui, sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #f0a818;
+    text-shadow: 0 0 10px rgb(240 168 24 / 0.45), 0 2px 0 #000;
+  }
+  /* Heading with an amber rule running off to the right. */
+  .kit-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .kit-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgb(240 168 24 / 0.55), transparent);
+  }
+
+  /* ---- Panel (Card) ----------------------------------------------------------
+     info.webp is 1600x406. Its corner blocks (with the orange light strips and
+     plates) reach ~440px in from each side and ~135px/110px down/up; between
+     them the edges are plain double rails that stretch cleanly. Drawn at --kit-s
+     scale; when a panel is smaller than the corners the browser shrinks all four
+     proportionally. */
+  .kit-panel {
+    --kit-s: 0.3;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 13px 17px 12px;
+    background: #000;
+    border: 0 solid transparent;
+    border-image-source: url('/hud/info.webp');
+    border-image-slice: 135 440 110 440 fill;
+    border-image-width: calc(135px * var(--kit-s)) calc(440px * var(--kit-s)) calc(110px * var(--kit-s)) calc(440px * var(--kit-s));
+    border-image-repeat: stretch;
+  }
+  .kit-panel.kit-panel-titled {
+    padding-top: 5px;
+  }
+  .kit-panel-vents {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  @media (max-width: 640px) {
+    .kit-panel {
+      --kit-s: 0.24;
+      padding: 10px 13px 10px;
+    }
+    .kit-panel.kit-panel-titled {
+      padding-top: 4px;
+    }
+  }
+
+  .kit-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+    margin: 0 clamp(0px, 6%, 90px) 6px clamp(0px, 8%, 110px);
+  }
+  /* The title plate hangs off the top rail: a gunmetal trapezoid with an amber
+     rim and amber stencil lettering. */
+  .kit-plate-title {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 20px;
+    font-family: var(--font-oxanium), system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: #f0a818;
+    text-shadow: 0 0 6px rgb(240 168 24 / 0.5), 0 1px 0 #000;
+    isolation: isolate;
+  }
+  .kit-plate-title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .kit-plate-title::before,
+  .kit-plate-title::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 12px 100%);
+  }
+  .kit-plate-title::before {
+    inset: 0;
+    background: linear-gradient(180deg, #c98a14, #7a4f08);
+  }
+  .kit-plate-title::after {
+    inset: 0 1.5px 1.5px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 45%),
+      linear-gradient(180deg, #2c2a27, #121110);
+  }
+
+  /* Light strips on the plate row (the Card `leds`). */
+  .kit-leds {
+    display: flex;
+    gap: 3px;
+    padding-top: 9px;
+  }
+  .kit-leds > i {
+    display: block;
+    width: 14px;
+    height: 4px;
+    border-radius: 1px;
+    background: #2a2622;
+  }
+  .kit-leds > i.on-amber { background: #f0a818; box-shadow: 0 0 6px rgb(240 168 24 / 0.8); }
+  .kit-leds > i.on-green { background: #3dff6a; box-shadow: 0 0 6px rgb(61 255 106 / 0.7); }
+  .kit-leds > i.on-blue { background: #7fd4ff; box-shadow: 0 0 6px rgb(127 212 255 / 0.7); }
+  .kit-leds > i.on-red { background: #ff3b2f; box-shadow: 0 0 6px rgb(255 59 47 / 0.8); }
+
+  /* The keycap row under a panel: a strip of amber lights on the bottom rail. */
+  .kit-keys {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    margin-top: 5px;
+  }
+  .kit-keys > i {
+    display: block;
+    width: 18px;
+    height: 3px;
+    border-radius: 1px;
+    background: #f0a818;
+    opacity: 0.8;
+    box-shadow: 0 0 5px rgb(240 168 24 / 0.6);
+  }
+  .kit-keys > i:nth-child(even) { opacity: 0.35; box-shadow: none; }
+
+  .kit-screen {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    background: #000;
+  }
+
+  /* ---- Slots ---------------------------------------------------------------- */
+  .kit-well {
+    border: 1px solid #36322c;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #000, #070605);
+    box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.9), 0 0 0 1px #000, 0 1px 0 rgb(240 168 24 / 0.08);
+  }
+  .kit-field {
+    border: 1px solid #4a4238;
+    border-radius: 3px;
+    background: #000;
+    color: #3dff6a;
+    caret-color: #f0a818;
+    text-shadow: 0 0 5px rgb(61 255 106 / 0.35);
+    box-shadow: inset 0 2px 8px rgb(0 0 0 / 0.95), 0 0 0 1px #000;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .kit-field::placeholder {
+    color: rgb(165 157 140 / 0.5);
+    text-shadow: none;
+  }
+  .kit-field:hover:not(:disabled) {
+    border-color: #6b5a3a;
+  }
+  .kit-field:focus-visible {
+    outline: none;
+    border-color: #f0a818;
+    box-shadow: inset 0 2px 8px rgb(0 0 0 / 0.95), 0 0 0 1px #000, 0 0 10px rgb(240 168 24 / 0.35);
+  }
+  .kit-field[aria-invalid='true'] {
+    border-color: #ff3b2f;
+  }
+
+  /* A key in a segmented rail: dark, lit orange when chosen. */
+  .kit-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border: 0 solid transparent;
+    color: #a59d8c;
+    font-family: var(--font-oxanium), system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: color 0.12s, filter 0.12s;
+    outline: none;
+  }
+  .kit-toggle:hover {
+    color: #f0a818;
+  }
+  .kit-toggle:focus-visible {
+    box-shadow: 0 0 0 2px #f0a818;
+  }
+  .kit-toggle[aria-pressed='true'],
+  .kit-toggle[aria-current='true'],
+  .kit-toggle[aria-current='page'],
+  .kit-toggle[data-state='active'],
+  .kit-toggle.is-on {
+    color: #fff3c4;
+    text-shadow: 0 1px 1px #000;
+    border-image-source: url('/hud/btn-hover.webp');
+    border-image-slice: 30 fill;
+    border-image-width: 7px;
+  }
+
+  /* ---- Buttons ------------------------------------------------------------------
+     The plates are 144x125 with ~30px rounded corners; 9-sliced so they stretch
+     to any width without smearing the rim. The plate is a ::before layer so the
+     red/green variants can retint it without touching the label. */
+  .kit-button {
+    position: relative;
+    isolation: isolate;
+    border: 0 solid transparent;
+    --kit-plate: url('/hud/btn-hover.webp');
+    --kit-plate-hover: url('/hud/btn-hover.webp');
+    --kit-tint: none;
+    color: #fff3c4;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.9);
+  }
+  .kit-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 0 solid transparent;
+    border-image-source: var(--kit-plate);
+    border-image-slice: 30 fill;
+    border-image-width: 9px;
+    filter: var(--kit-tint);
+    transition: filter 0.12s;
+  }
+  .kit-button:hover:not(:disabled)::before,
+  .kit-button:focus-visible::before {
+    border-image-source: var(--kit-plate-hover);
+    filter: var(--kit-tint) brightness(1.15) drop-shadow(0 0 6px rgb(240 168 24 / 0.55));
+  }
+  .kit-button:active:not(:disabled)::before {
+    border-image-source: url('/hud/btn-pressed.webp');
+  }
+  .kit-button:disabled::before,
+  .kit-button[aria-disabled='true']::before {
+    border-image-source: url('/hud/btn-disabled.webp');
+    filter: none;
+  }
+  .kit-button:disabled,
+  .kit-button[aria-disabled='true'] {
+    color: #8a8478;
+  }
+  /* Dark plate with an orange rim and amber legend; lights up on hover. */
+  .kit-button.kit-button-dark {
+    --kit-plate: url('/hud/btn-normal.webp');
+    color: #f0a818;
+    text-shadow: 0 0 6px rgb(240 168 24 / 0.45), 0 1px 1px #000;
+  }
+  .kit-button.kit-button-dark:hover:not(:disabled) {
+    color: #fff3c4;
+  }
+  .kit-button.kit-button-red {
+    --kit-tint: hue-rotate(-28deg) saturate(1.5);
+    color: #ffe6e2;
+  }
+  .kit-button.kit-button-green {
+    --kit-tint: hue-rotate(88deg) saturate(1.3) brightness(0.95);
+    color: #eaffea;
+  }
+
+  /* ---- Top HUD (GameBar) ---------------------------------------------------- */
+  .kit-topbar {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent 40%),
+      linear-gradient(180deg, #0c0c0d, #000);
+    border-bottom: 1px solid #2c2925;
+    box-shadow: 0 1px 0 rgb(240 168 24 / 0.22), 0 6px 18px rgb(0 0 0 / 0.7);
+  }
+  /* The wallet button, redressed as a kit plate on the non-creep screens. */
+  .kit-wallet .wallet-adapter-button {
+    position: relative;
+    height: 34px !important;
+    border: 0 solid transparent !important;
+    border-radius: 0 !important;
+    background: none !important;
+    border-image-source: url('/hud/btn-normal.webp') !important;
+    border-image-slice: 30 fill !important;
+    border-image-width: 9px !important;
+    box-shadow: none !important;
+    color: #f0a818 !important;
+    text-shadow: 0 0 6px rgb(240 168 24 / 0.45), 0 1px 1px #000;
+  }
+  .kit-wallet .wallet-adapter-button:not([disabled]):hover {
+    border-image-source: url('/hud/btn-hover.webp') !important;
+    color: #fff3c4 !important;
+    filter: none;
+  }
+  @media (max-width: 640px) {
+    .kit-wallet .wallet-adapter-button {
+      height: 34px !important;
+      padding: 0 9px !important;
+      font-size: 10px !important;
+    }
+  }
+
+  /* ---- Dialog --------------------------------------------------------------- */
+  .kit-dialog {
+    border: 2px solid #f0a818;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.95);
+    box-shadow: 0 0 0 1px #000, 0 0 24px rgb(240 168 24 / 0.18), 0 12px 40px rgb(0 0 0 / 0.8);
+  }
+}
+
+/* The wallet-adapter modal, in the same transmission style (it portals to <body>). */
+.wallet-adapter-modal-wrapper {
+  background: rgb(0 0 0 / 0.95) !important;
+  border: 2px solid #f0a818 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 24px rgb(240 168 24 / 0.18), 0 12px 40px rgb(0 0 0 / 0.8) !important;
+}
+.wallet-adapter-modal-title {
+  color: #f0a818 !important;
+  text-shadow: 0 0 8px rgb(240 168 24 / 0.45);
+}
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background: rgb(240 168 24 / 0.12) !important;
+}
+.wallet-adapter-dropdown-list {
+  background: #000 !important;
+  border: 2px solid #f0a818 !important;
+}
+.wallet-adapter-dropdown-list-item:not([disabled]):hover {
+  background: rgb(240 168 24 / 0.14) !important;
+}
+
+@layer components {
+  /* A dark plate that is the current choice (e.g. the page you're on in MENU): lit. */
+  .kit-button.kit-button-dark.kit-button-lit {
+    --kit-plate: url('/hud/btn-hover.webp');
+    color: #fff3c4;
+    text-shadow: 0 1px 1px #000;
+  }
+}
+
+@layer components {
+  /* A lighter frame for small repeated panels (unit cards on the swarm list). */
+  .kit-panel.kit-panel-sm {
+    --kit-s: 0.2;
+    padding: 9px 12px 8px;
+  }
+}

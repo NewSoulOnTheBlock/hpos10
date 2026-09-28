@@ -1,0 +1,31 @@
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { PublicKey } from '@solana/web3.js'
+
+/** The connected wallet's UI balance of `mint`, summed across token accounts. */
+export function useTokenBalance(mint: string) {
+  const { connection } = useConnection()
+  const { publicKey } = useWallet()
+  return useQuery({
+    queryKey: ['balance', publicKey?.toBase58(), mint],
+    enabled: !!publicKey,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const res = await connection.getParsedTokenAccountsByOwner(publicKey!, { mint: new PublicKey(mint) })
+      let total = 0
+      let raw = 0n
+      let decimals = 6
+      for (const a of res.value) {
+        const info = a.account.data.parsed?.info?.tokenAmount as { amount: string; decimals: number; uiAmount: number | null } | undefined
+        if (!info) continue
+        raw += BigInt(info.amount)
+        decimals = info.decimals
+        total += info.uiAmount ?? 0
+      }
+      return { ui: total, raw, decimals }
+    },
+  })
+}

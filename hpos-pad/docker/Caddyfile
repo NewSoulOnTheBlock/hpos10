@@ -1,0 +1,19 @@
+{$API_DOMAIN} {
+	encode zstd gzip
+	# REST and the /ws WebSocket both go to the api; Caddy upgrades WS transparently.
+	reverse_proxy api:3001 {
+		header_up X-Forwarded-For {remote_host}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	log {
+		output stdout
+		format console
+	}
+}
+
+# Extra sites (e.g. the web app) are dropped in here once their DNS points at
+# this server, so Caddy never requests a certificate it cannot get.
+import sites/*.caddy

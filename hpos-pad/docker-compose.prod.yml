@@ -1,0 +1,63 @@
+# Production overrides, used with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# - Postgres/Redis are not reachable from the internet (loopback only).
+# - Caddy terminates TLS for API_DOMAIN (automatic Let's Encrypt) and proxies
+#   REST + WebSocket to the api container. Only 80/443 are public.
+# - keys/vanity is mounted so new vanity keypairs can be imported in place.
+
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:5435:5432"
+
+  redis:
+    ports: !override
+      - "127.0.0.1:6382:6379"
+
+  api:
+    ports: !override []
+    expose:
+      - "3001"
+
+  chain-service:
+    volumes:
+      - ./keys/vanity:/app/keys/vanity
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+        NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    ports:
+      # Loopback only, for checks before DNS points here; the public path is Caddy.
+      - "127.0.0.1:3000:3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docker/sites:/etc/caddy/sites:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

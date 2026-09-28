@@ -1,0 +1,87 @@
+# The Hatchery backend. One Postgres + one Redis shared by:
+#   api            REST + WebSocket bridge (stateless, scale horizontally)
+#   chain-indexer  ingestion (gRPC/RPC) -> Postgres, events -> Redis
+#   chain-service  reflections, auto-migration, rollups (leader-elected via Redis)
+# The web app deploys separately (Vercel or `pnpm --filter @hpos-pad/web build`).
+
+x-app: &app
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql://hpospad:hpospad@postgres:5432/hpospad
+    REDIS_URL: redis://redis:6379
+    NODE_ENV: production
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hpospad
+      POSTGRES_PASSWORD: hpospad
+      POSTGRES_DB: hpospad
+    ports:
+      - "5435:5432"
+    volumes:
+      - hpospad_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hpospad -d hpospad"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6382:6379"
+    volumes:
+      - hpospad_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot schema sync before anything starts.
+  migrate:
+    build: { context: ., dockerfile: docker/Dockerfile, target: build }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://hpospad:hpospad@postgres:5432/hpospad
+    command: ["pnpm", "--filter", "@hpos-pad/db", "exec", "prisma", "db", "push", "--skip-generate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    build: { context: ., dockerfile: docker/Dockerfile, target: api }
+    ports:
+      - "3001:3001"
+
+  chain-indexer:
+    <<: *app
+    build: { context: ., dockerfile: docker/Dockerfile, target: chain }
+    command: ["node", "dist/indexer.js"]
+
+  chain-service:
+    <<: *app
+    build: { context: ., dockerfile: docker/Dockerfile, target: chain }
+    command: ["node", "dist/service.js"]
+    # Internal claim signer; reachable only on the compose network (no host port).
+    expose:
+      - "3002"
+
+volumes:
+  hpospad_pgdata:
+  hpospad_redisdata:
