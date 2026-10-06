@@ -34,6 +34,9 @@ services:
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
         NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL}
     restart: unless-stopped
+    environment:
+      # Pre-launch gate (apps/web/lib/gate.ts): set = Coming soon + password; empty = site open.
+      SITE_LOCK_PASSWORD: ${SITE_LOCK_PASSWORD:-}
     expose:
       - "3000"
     ports:

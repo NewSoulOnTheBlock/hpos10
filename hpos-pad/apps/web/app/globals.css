@@ -382,6 +382,10 @@ html {
 @keyframes zsprite { to { transform: translateX(-100%); } }
 /* Play a strip once and hold its last frame (death splat). */
 @keyframes zsprite-once { to { transform: translateX(var(--last)); } }
+/* Event notice countdown (creep-map NOTICE_MS); paused while hovered, like the JS timer. */
+.notice-timer { animation-name: notice-timer; animation-timing-function: linear; animation-fill-mode: forwards; }
+.kit-tooltip:hover > .notice-timer { animation-play-state: paused; }
+@keyframes notice-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 /* A hatched mob standing still: a slow breath. */
 .mob-idle { animation: mob-breathe 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes mob-breathe { 50% { transform: scale(1.025, 0.975); } }
@@ -548,6 +552,7 @@ html {
   .animate-notify,
   .zsprite,
   .mob-idle,
+  .notice-timer,
   .mob-fly,
   .cerebrate-eye,
   .breathe,

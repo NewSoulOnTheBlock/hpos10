@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ship the backend to the server and (re)start it.
-#   DEPLOY_HOST=root@45.61.137.13 ./scripts/deploy.sh
+#   DEPLOY_HOST=root@168.100.10.26 ./scripts/deploy.sh
 set -euo pipefail
 HOST="${DEPLOY_HOST:?set DEPLOY_HOST, e.g. root@1.2.3.4}"
 DIR="${DEPLOY_DIR:-/opt/hpospad}"

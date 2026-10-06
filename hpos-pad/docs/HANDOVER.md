@@ -189,9 +189,9 @@ Gotchas:
 - `.env`:
   - The local `hpos-pad/.env` is the production env: `NODE_ENV=production`, RPC and Pinata reused from TronPad, freshly generated `VANITY_ENCRYPTION_KEY`/`SIGNER_TOKEN`, deploy vars at the bottom.
   - It is copied by hand to `/opt/hpospad/.env` (600); `deploy.sh` never ships it.
-- Server `root@64.111.93.209`:
+- Server `root@168.100.10.26`:
   - Ubuntu 24.04, Docker 29, key auth from this Mac; ufw inactive.
-  - `DEPLOY_HOST=root@64.111.93.209 ./scripts/deploy.sh` rsyncs to `/opt/hpospad` and runs `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. That starts postgres, redis, migrate, api, chain-indexer, chain-service, web and caddy.
+  - `DEPLOY_HOST=root@168.100.10.26 ./scripts/deploy.sh` rsyncs to `/opt/hpospad` and runs `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. That starts postgres, redis, migrate, api, chain-indexer, chain-service, web and caddy.
 - Caddy:
   - `api.thehatchery.site` (`API_DOMAIN`) goes to api:3001.
   - `docker/sites/web.caddy`: `thehatchery.site` goes to web:3000; `www` redirects to it.
@@ -199,17 +199,56 @@ Gotchas:
   - no vanity keys (launches fall back to random mints; `pnpm vanity:grind` / `vanity:import`);
   - `OFFICIAL_MINT` / `FEATURED_MINTS` empty (the Hive in the middle has no platform token until one is launched and set).
 
+## Small fixes (2026-10-06)
+- Copy CA on phones:
+  - The info panel shows `CA: xxxx…hpos` with a copy button on every screen size.
+  - `copyText` (`lib/clipboard.ts`) falls back to `execCommand('copy')` for in-wallet browsers. If that fails too, the toast shows the full mint so it can be selected by hand.
+  - The phone command row has plain labels: Buy, Sell, Chart, Copy CA, Create, Wallet, Swarm, Menu.
+- The chat (Comms) icon in the game bar and the creep HUD now opens the Telegram group. It used to link to `/board`, which looked dead on /board.
+- The creep (desktop only) has a "Distributed so far" card, top right above "A larva awaits": `stats.creatorEarnedTotalQuote + reflectedTotalQuote`, in $BITCOIN (HPOS10I's ticker in wallets), with ≈USD.
+- Balances (SOL and HPOS10I) refetch on window focus and every 10s.
+- Creep event notices (spawned, hatched, rugged) close by themselves after `NOTICE_MS` (8s). A thin countdown bar shows the time left; hover pauses it and leaving restarts the clock. At most 3 are shown at once.
+  - No repeats per session:
+    - growth is only announced past the highest form seen (`peak` ref), so values flapping across a tier threshold don't re-announce;
+    - a spawn is only announced for a never-seen mint;
+    - each notice id is shown once;
+    - nothing is announced on first load.
+- Desktop HUD: the F1/F2 tabs above the minimap read "F1 Creep" and "F2 Swarm" (bigger, brighter). The game clock moved to the info panel's top-right edge.
+- A user's `ERR_NAME_NOT_RESOLVED` for api.thehatchery.site was client-side DNS. Server and DNS were fine; we sent them a cache-flush guide.
+
+## Server rebuild (2026-10-02)
+- The first server (64.111.93.209) died. Rebuilt on **`root@168.100.10.26`** (Ubuntu 24.04, 2 CPU, 3.8 GB RAM plus 4 GB swap, Docker 29). DNS was moved by the owner.
+- Steps:
+  1. Install Docker (get.docker.com) and add swap.
+  2. `scp .env` to `/opt/hpospad/.env` (600).
+  3. Run `DEPLOY_HOST=root@168.100.10.26 ./scripts/deploy.sh`.
+  4. Move `keys/vanity/pushed/*.json` back to `keys/vanity/`, then run `push-vanity.sh`.
+  5. Mark vanity mints that already exist as tokens as used: `UPDATE "VanityMint" SET "usedAt"=now() WHERE pubkey IN (SELECT mint FROM "Token")`.
+  6. Re-hide $TEST.
+- Recovered from the chain: the indexer backfilled every token (7, one of them, FISHING, already graduated). Nothing on chain was lost.
+- Lost: DB-only history (reflection epochs, so the "paid" and creator-earned totals restart from zero) and hidden flags. Unclaimed fees were still on chain, so they are claimed and paid as usual. No double pay, because only what is claimable now is claimed.
+- `keys/vanity/used/` holds the key of the $TEST mint, which must never be re-imported.
+- No off-server DB backup yet; it was offered to the owner.
+
+## Pre-launch gate: Coming soon (2026-09-29)
+- While `SITE_LOCK_PASSWORD` is set, every page renders `app/soon` (Coming soon, socials, password form). It was `123` before launch; **the site was opened 2026-09-29 (variable now empty)**.
+  - `apps/web/proxy.ts` (Next 16's middleware, Node runtime, reads the env at runtime) rewrites pages to `/soon`, and passes the requested path in the `x-gate-next` header.
+  - `app/api/gate` checks the password and sets the httpOnly `hatchery-gate` cookie (a SHA-256 of the password, 30 days), then redirects back with a relative Location.
+  - Static assets and `/_next` pass through. The API domain is not gated.
+- **To open the site:** set `SITE_LOCK_PASSWORD=` (empty) in `/opt/hpospad/.env`, then `cd /opt/hpospad && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d web`. No rebuild is needed; compose passes it to the web service.
+- Changing the password logs everyone out, because the cookie hash no longer matches.
+
 ## Mobile + vanity (2026-09-29)
 - Mobile creep, deployed:
   - The map is full-screen (`h-dvh`, map `absolute inset-0`).
   - The bottom HUD is an overlay. On phones: no minimap; the info panel only while something is selected; one row of commands plus Menu (`md:hidden`). The desktop 3×3 command card is `hidden md:block`.
   - "A larva awaits" is hidden under `sm`.
-  - The camera opens at `z = width/900` on phones, `ZOOM_MIN` is 0.3, and two-finger pinch zoom is in `camera.ts`.
+  - The opening zoom is `initialZoom(w, h)` in `camera.ts`: phones use `w/900`, and larger screens `min(w/1800, h/1000)` clamped to 0.55–1 (1920×1080 = 1, 1366×768 ≈ 0.76). `ZOOM_MIN` is 0.3. Two-finger pinch zoom is in `camera.ts` too.
   - Name and "paid" labels counter-scale up to 2× when zoomed out.
   - The trades table drops the base-amount and price columns on phones.
 - Phone screenshots: headless Chrome's `--window-size` can't go below ~500px, so use CDP device emulation. The session scratchpad `mshot.mjs` does this: `Emulation.setDeviceMetricsOverride` with `mobile: true`.
 - Vanity:
-  - 20 `…hpos` mints were imported on the server (`push-vanity.sh`).
+  - ~270 `…hpos` mints are imported on the server (20 first, then 250 more in batches of 20 via `push-vanity.sh`).
   - A local loop grinds 250 more and pushes every 20 (scratchpad `vanity-loop.sh`, log `vanity-loop.log`).
   - Check with `docker compose … exec chain-service node dist/scripts/vanity.js status` on the server.
 - Owner to-dos: top up the fee claimer to ~0.5 SOL; do a real mainnet test launch; pick the platform token for `OFFICIAL_MINT`.
@@ -220,7 +259,7 @@ Gotchas:
 
 ## Open decisions for the owner
 - Keys and config: done (see Mainnet launch setup). Background (in Turkish, for the owner) in `docs/CONFIG.md`: new fee claimer in `keys/`, treasury address only, `pnpm config:create`. The curve was shrunk at the owner's request (2026-09-29) to 150k → 2M HPOS10I (~$2.4k → ~$32.6k market cap, ~$7k raised = ~15% of HPOS10I's ~$47k Solana liquidity; options table in CONFIG.md). Watch for the port clash if it is deployed next to TronPad.
-- Domains: web `thehatchery.site` (+ `www`, redirected), api `api.thehatchery.site`, server `64.111.93.209` (2026-09-29). Socials are set: X `@hpos10ireturns`, Telegram `t.me/hpos10i` (`lib/constants.ts`).
+- Domains: web `thehatchery.site` (+ `www`, redirected), api `api.thehatchery.site`, server `168.100.10.26` (2026-09-29). Socials are set: X `@hpos10ireturns`, Telegram `t.me/hpos10i` (`lib/constants.ts`).
 - Morph (launch) fee: currently free. `POOL_CREATION_FEE_SOL` is immutable in the config.
 - "Bundle wallets": declined as a hidden feature; they could be shown transparently.
 - Git repo and deploy target (TronPad deploys by rsync to its server).

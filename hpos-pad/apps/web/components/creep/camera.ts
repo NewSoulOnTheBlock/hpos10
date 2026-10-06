@@ -48,6 +48,15 @@ export function worldRadius(n: number): number {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
+/**
+ * Opening zoom for a viewport: 1 on a 1920×1080 screen, further out as it
+ * shrinks (1366×768 ≈ 0.76, 1280×720 ≈ 0.71); phones by width (390 ≈ 0.43).
+ */
+export function initialZoom(w: number, h: number): number {
+  if (w < 768) return clamp(w / 900, ZOOM_MIN, 1)
+  return clamp(Math.min(w / 1800, h / 1000), 0.55, 1)
+}
+
 export type EdgeDir = 'up' | 'down' | 'left' | 'right' | null
 
 /**
@@ -76,10 +85,10 @@ export function useCamera(radius: number) {
     const ro = new ResizeObserver(([e]) => {
       if (!e) return
       setSize({ w: e.contentRect.width, h: e.contentRect.height })
-      // Phones open further out, so the first view shows the swarm, not one creature.
+      // Smaller screens open further out, so the first view shows the swarm, not one creature.
       if (first) {
         first = false
-        if (e.contentRect.width < 768) setCam((c) => ({ ...c, z: clamp(e.contentRect.width / 900, ZOOM_MIN, 1) }))
+        setCam((c) => ({ ...c, z: initialZoom(e.contentRect.width, e.contentRect.height) }))
       }
     })
     ro.observe(el)

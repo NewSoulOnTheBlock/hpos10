@@ -11,8 +11,11 @@ export function useTokenBalance(mint: string) {
   return useQuery({
     queryKey: ['balance', publicKey?.toBase58(), mint],
     enabled: !!publicKey,
-    staleTime: 10_000,
-    refetchInterval: 20_000,
+    // Wallet balances change outside the site (a transfer from Phantom), so re-read
+    // them on return to the tab and every few seconds while it's open.
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const res = await connection.getParsedTokenAccountsByOwner(publicKey!, { mint: new PublicKey(mint) })
       let total = 0

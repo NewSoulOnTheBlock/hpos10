@@ -4,25 +4,7 @@ import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-
-/** Clipboard API first; the legacy selection copy covers browsers that block it (older Safari, embedded webviews). */
-async function copyText(value: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(value)
-    return
-  } catch {
-    const el = document.createElement('textarea')
-    el.value = value
-    el.setAttribute('readonly', '')
-    el.style.position = 'fixed'
-    el.style.opacity = '0'
-    document.body.appendChild(el)
-    el.select()
-    const ok = document.execCommand('copy')
-    el.remove()
-    if (!ok) throw new Error('copy failed')
-  }
-}
+import { copyText } from '@/lib/clipboard'
 
 /**
  * `inLink`: the button sits inside a clickable card link; copying must not

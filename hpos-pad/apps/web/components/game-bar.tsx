@@ -13,6 +13,7 @@ import { useLaunchpadConfig } from '@/hooks/use-config'
 import { useTokenBalance } from '@/hooks/use-token-balance'
 import { useRealtimeStatus } from '@/hooks/use-websocket'
 import { formatCompact } from '@/lib/format'
+import { HPOSPAD_TG_URL } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { SprotoAvatar } from '@/components/sproto-avatar'
 import { GameMenu } from '@/components/game-menu'
@@ -41,7 +42,8 @@ export function GameBar() {
   const sol = useQuery({
     queryKey: ['sol-balance', publicKey?.toBase58()],
     enabled: !!publicKey,
-    refetchInterval: 20_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => (await connection.getBalance(publicKey!)) / 1e9,
   })
   const quote = useTokenBalance(config?.quote.mint ?? '11111111111111111111111111111111')
@@ -94,7 +96,14 @@ export function GameBar() {
           <span className="kit-wallet flex h-[34px] items-center">
             <WalletMultiButton />
           </span>
-          <Link href="/board" className="kit-small hidden size-[34px] bg-[url(/hud/sb-chat.webp)] sm:grid" aria-label="Comms: the swarm list" title="Swarm list" />
+          <a
+            href={HPOSPAD_TG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="kit-small hidden size-[34px] bg-[url(/hud/sb-chat.webp)] sm:grid"
+            aria-label="Comms: the Telegram group"
+            title="Telegram"
+          />
           <button type="button" onClick={() => setMenu(true)} className="kit-small size-[34px] bg-[url(/hud/sb-menu.webp)]" aria-label="Menu" title="Menu" />
         </div>
       </div>

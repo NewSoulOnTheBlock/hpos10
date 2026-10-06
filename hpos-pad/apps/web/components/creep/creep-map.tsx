@@ -18,6 +18,10 @@ import { MOB_LABEL, MOB_RANK, isHatched, mobOf, type Mob } from '@/lib/evolution
 import { LARVA_SLOTS, useLarvae } from '@/lib/larva'
 import { formatCompact, formatUsd, shortAddress } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { copyText } from '@/lib/clipboard'
+import { HPOSPAD_TG_URL } from '@/lib/constants'
+import { CopyButton } from '@/components/copy-button'
+import { DistributedStat } from '@/components/distributed-stat'
 import { placeOf, useCamera, worldRadius, type Cam, type Vec } from '@/components/creep/camera'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { TradePanel } from '@/components/token/trade-panel'
@@ -54,6 +58,9 @@ const SIZE: Record<Mob, number> = { larva: 84, egg: 78, hatching: 84, zergling: 
 const HP_SEGMENTS: Record<Mob, number> = { larva: 5, egg: 6, hatching: 8, zergling: 8, hydralisk: 9, mutalisk: 10, queen: 11, defiler: 12, ultralisk: 14 }
 const dotOf = (m: Mob) => (m === 'larva' ? 'bg-[#fe8e00]' : !isHatched(m) ? 'bg-[#feeb00]' : MOB_RANK[m] >= MOB_RANK.queen ? 'bg-[#f4ffd6]' : 'bg-[#3dff6a]')
 
+/** Plain words under the phone command row (the game names stay on desktop). */
+const PHONE_LABEL: Record<string, string> = { Feed: 'Buy', Vomit: 'Sell', 'Copy CA': 'Copy CA', Morph: 'Create' }
+
 type Group = { id: string; label: string; kinds: Mob[] }
 const GROUPS: Group[] = [
   { id: '1', label: 'Larvae', kinds: ['larva'] },
@@ -81,7 +88,10 @@ const readBriefed = () => {
   }
 }
 
-type Notice = { id: string; title: string; body: string; mint: string }
+/** Event notices fade out on their own: with many tokens they'd pile up otherwise. Hover keeps one open. */
+const NOTICE_MS = 8_000
+
+type Notice = { id: string; title: string; body: string; mint: string; at: number }
 
 export function CreepMap() {
   const params = useSearchParams()
@@ -148,39 +158,68 @@ export function CreepMap() {
 
   // Event notices (top right): a new larva on the creep, a hatch or growth, a rug.
   const [notices, setNotices] = useState<Notice[]>([])
-  const seen = useRef<Map<string, Mob> | null>(null)
+  // What this session has already announced, so a value flapping across a
+  // threshold (market cap, the quote price) can't re-announce the same thing:
+  // growth is only announced past the highest form seen so far, a spawn only
+  // for a mint never seen, and any notice id at most once.
+  const known = useRef<Set<string> | null>(null)
+  const peak = useRef<Map<string, number>>(new Map())
   const lifeBefore = useRef<Map<string, string>>(new Map())
+  const announced = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (tokens.length === 0) return
-    const now = new Map(tokens.map((t) => [t.mint, mobOf(t)] as const))
-    const lives = new Map(tokens.map((t) => [t.mint, t.lifeState ?? 'ALIVE'] as const))
-    const before = seen.current
-    seen.current = now
-    const livesBefore = lifeBefore.current
-    lifeBefore.current = lives
-    if (!before) return
-    const fresh: Notice[] = []
+    const first = known.current === null
+    const seenMints = known.current ?? new Set<string>()
+    known.current = seenMints
+    const fresh: Omit<Notice, 'at'>[] = []
+    const say = (n: Omit<Notice, 'at'>) => {
+      if (first || announced.current.has(n.id)) return
+      announced.current.add(n.id)
+      fresh.push(n)
+    }
     for (const t of tokens) {
-      const was = before.get(t.mint)
-      const is = now.get(t.mint)!
-      if (!was) fresh.push({ id: `${t.mint}:new`, title: 'A larva has spawned', body: `$${t.symbol} is wriggling on the creep.`, mint: t.mint })
-      else if (t.lifeState === 'RUGGED' && livesBefore.get(t.mint) !== 'RUGGED')
-        fresh.push({ id: `${t.mint}:rugged`, title: 'A brood has been rugged', body: `$${t.symbol}: the creator dumped and it collapsed.`, mint: t.mint })
-      else if (isHatched(is) && MOB_RANK[is] > MOB_RANK[was])
-        fresh.push({ id: `${t.mint}:${is}`, title: isHatched(was) ? 'Evolution complete' : 'A brood has hatched', body: `$${t.symbol} is now a ${MOB_LABEL[is]}.`, mint: t.mint })
+      const mob = mobOf(t)
+      const rank = MOB_RANK[mob]
+      const top = peak.current.get(t.mint)
+      const life = t.lifeState ?? 'ALIVE'
+      if (!seenMints.has(t.mint)) {
+        seenMints.add(t.mint)
+        say({ id: `${t.mint}:new`, title: 'A larva has spawned', body: `$${t.symbol} is wriggling on the creep.`, mint: t.mint })
+      } else if (life === 'RUGGED' && lifeBefore.current.get(t.mint) !== 'RUGGED') {
+        say({ id: `${t.mint}:rugged`, title: 'A brood has been rugged', body: `$${t.symbol}: the creator dumped and it collapsed.`, mint: t.mint })
+      } else if (top !== undefined && rank > top && isHatched(mob)) {
+        const wasHatched = top >= MOB_RANK.zergling
+        say({ id: `${t.mint}:${mob}`, title: wasHatched ? 'Evolution complete' : 'A brood has hatched', body: `$${t.symbol} is now a ${MOB_LABEL[mob]}.`, mint: t.mint })
+      }
+      peak.current.set(t.mint, Math.max(top ?? rank, rank))
+      lifeBefore.current.set(t.mint, life)
     }
     // Reacting to new server data (an external system), not deriving render state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (fresh.length) setNotices((n) => [...fresh, ...n].slice(0, 3))
+    if (fresh.length) setNotices((n) => [...fresh.map((f) => ({ ...f, at: Date.now() })), ...n].slice(0, 3))
   }, [tokens])
+  // Expire notices after NOTICE_MS, except the one under the pointer.
+  const hoveredNotice = useRef<string | null>(null)
+  const hasNotices = notices.length > 0
+  useEffect(() => {
+    if (!hasNotices) return
+    const t = setInterval(() => {
+      const now = Date.now()
+      setNotices((n) => {
+        const keep = n.filter((x) => x.id === hoveredNotice.current || now - x.at < NOTICE_MS)
+        return keep.length === n.length ? n : keep
+      })
+    }, 500)
+    return () => clearInterval(t)
+  }, [hasNotices])
 
   const copyCa = async () => {
     if (!token) return
     try {
-      await navigator.clipboard.writeText(token.mint)
-      toast.success('Contract address copied')
+      await copyText(token.mint)
+      toast.success('Contract address copied', { description: token.mint })
     } catch {
-      toast.error('Could not copy')
+      // Some in-wallet browsers block the clipboard: show the address so it can be selected by hand.
+      toast.error('Could not copy. Long-press to select:', { description: token.mint, duration: 15_000 })
     }
   }
   const select = (mint: string, fly = false) => {
@@ -316,9 +355,27 @@ export function CreepMap() {
 
       {/* ---- Notices, under the resources ---- */}
       <div className="pointer-events-none absolute right-2 top-[60px] z-20 flex w-72 max-w-[calc(100%-1rem)] flex-col gap-2 sm:right-3 sm:top-[70px] sm:w-80">
+        {/* Desktop only: $BITCOIN paid out so far. */}
+        <DistributedStat className="kit-tooltip pointer-events-auto hidden px-3 py-2.5 md:flex" />
         <MorphCall />
         {notices.map((n) => (
-          <div key={n.id} className="animate-notify kit-tooltip pointer-events-auto p-3">
+          <div
+            key={n.id}
+            className="animate-notify kit-tooltip pointer-events-auto relative overflow-hidden p-3"
+            onMouseEnter={() => (hoveredNotice.current = n.id)}
+            onMouseLeave={() => {
+              hoveredNotice.current = null
+              // Leaving restarts its clock, so it doesn't vanish the moment the pointer moves off.
+              setNotices((x) => x.map((y) => (y.id === n.id ? { ...y, at: Date.now() } : y)))
+            }}
+          >
+            {/* Time left before it closes. */}
+            <span
+              key={n.at}
+              className="notice-timer absolute inset-x-0 bottom-0 h-0.5 origin-left bg-[#f0a818]/70"
+              style={{ animationDuration: `${NOTICE_MS}ms` }}
+              aria-hidden
+            />
             <p className="kit-amber font-display text-base font-bold">{n.title}</p>
             <p className="mt-1 text-sm text-foreground">{n.body}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -335,23 +392,30 @@ export function CreepMap() {
 
       {/* ---- The bottom HUD (frames cut from the licensed HUD kit, see scripts/hud-kit-*.py) ---- */}
       <div className="absolute inset-x-0 bottom-0 z-10 grid items-end gap-1 bg-[linear-gradient(0deg,#000_0,#000_60%,transparent)] px-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-6 md:grid-cols-[250px_minmax(0,1fr)_176px_262px] md:bg-[linear-gradient(0deg,#000_0,#000_55%,transparent)] md:px-2 md:pb-1 md:pt-10">
-        {/* Minimap with F1/F2 and the game clock above it (desktop; on a phone you drag the map). */}
+        {/* Minimap with F1/F2 above it (desktop; on a phone you drag the map). */}
         <div className="relative hidden h-[230px] md:block">
-          <div className="absolute -top-8 left-2 hidden gap-1 md:flex">
-            <Link href="/" className="kit-small kit-slot kit-amber size-7 font-display text-[11px] font-bold" title="F1: the creep">
-              F1
+          <div className="absolute -top-9 left-2 hidden gap-1.5 md:flex">
+            <Link
+              href="/"
+              className="kit-small kit-slot kit-amber flex h-8 items-center gap-1.5 px-3 font-display text-[12px] font-bold uppercase tracking-[0.12em] [text-shadow:0_0_8px_rgb(240_168_24/0.6)]"
+              title="F1: the creep (this map)"
+            >
+              <span className="text-[#feeb00]">F1</span> Creep
             </Link>
-            <Link href="/board" className="kit-small kit-slot size-7 font-display text-[11px] font-bold text-foreground/70" title="F2: the swarm list">
-              F2
+            <Link
+              href="/board"
+              className="kit-small kit-slot flex h-8 items-center gap-1.5 px-3 font-display text-[12px] font-bold uppercase tracking-[0.12em] text-foreground transition-colors hover:text-[#ffd98a]"
+              title="F2: the swarm list (every token as a list)"
+            >
+              <span className="text-[#feeb00]">F2</span> Swarm
             </Link>
           </div>
-          <GameClock />
           <div className="kit-frame kit-minimap size-full">
             <Minimap tokens={tokens} places={places} radius={radius} cam={cam} view={size} selected={selected} onSelect={(m) => select(m, true)} onJump={centerOn} />
           </div>
         </div>
 
-        {/* Info panel with the control groups on its top edge. On a phone only while something is selected. */}
+        {/* Info panel with the control groups and the game clock on its top edge. On a phone only while something is selected. */}
         <div className={cn('relative h-[176px] min-w-0 md:block md:h-[200px]', !token && !group && 'hidden')}>
           <div className="absolute -top-7 left-8 z-10 hidden gap-1 md:flex">
             {GROUPS.map((g) => {
@@ -370,6 +434,7 @@ export function CreepMap() {
               )
             })}
           </div>
+          <GameClock />
           <div className="kit-frame kit-info flex size-full px-[22px] py-[18px] md:px-[30px] md:py-[22px]">
             <SelectionPanel token={token} group={grouped} symbol={symbol} hatched={hatched === token?.mint} onPick={select} />
           </div>
@@ -383,29 +448,43 @@ export function CreepMap() {
         </div>
 
         {/* Phone: one row of commands plus the menu. */}
-        <div className="flex items-center justify-between gap-1 md:hidden">
+        <div className="flex items-start justify-between gap-0.5 md:hidden">
           {commands
             .filter((c) => c.key !== 'Esc' && c.key !== 'H')
             .map((c) => {
               const cls = cn('kit-btn size-10 shrink-0', c.framed && '!bg-none', c.disabled && 'pointer-events-none opacity-40')
-              return c.href && !c.disabled ? (
-                <Link key={c.label} href={c.href} className={cls} aria-label={c.hint}>
-                  {c.icon}
-                </Link>
-              ) : (
-                <button key={c.label} type="button" onClick={c.onClick} disabled={c.disabled} className={cls} aria-label={c.hint}>
-                  {c.icon}
-                </button>
+              const btn =
+                c.href && !c.disabled ? (
+                  <Link href={c.href} className={cls} aria-label={c.hint}>
+                    {c.icon}
+                  </Link>
+                ) : (
+                  <button type="button" onClick={c.onClick} disabled={c.disabled} className={cls} aria-label={c.hint}>
+                    {c.icon}
+                  </button>
+                )
+              return (
+                <div key={c.label} className="flex w-10 flex-col items-center gap-0.5">
+                  {btn}
+                  <span className={cn('whitespace-nowrap font-display text-[8px] font-bold uppercase leading-none tracking-wide text-[#ffd98a]', c.disabled && 'opacity-40')} aria-hidden>
+                    {PHONE_LABEL[c.label] ?? c.label}
+                  </span>
+                </div>
               )
             })}
-          <button type="button" onClick={() => setMenu(true)} className="kit-small size-10 shrink-0 bg-[url(/hud/sb-menu.webp)]" aria-label="Menu" />
+          <div className="flex w-10 flex-col items-center gap-0.5">
+            <button type="button" onClick={() => setMenu(true)} className="kit-small size-10 shrink-0 bg-[url(/hud/sb-menu.webp)]" aria-label="Menu" />
+            <span className="font-display text-[8px] font-bold uppercase leading-none tracking-wide text-[#ffd98a]" aria-hidden>
+              Menu
+            </span>
+          </div>
         </div>
 
         {/* Command panel: 3x3 kit buttons, the tooltip line and the menu row above it. */}
         <div className="relative hidden h-[210px] md:block">
           <div className="absolute -top-9 right-1 hidden items-center gap-1 md:flex">
             <Link href="/docs" className="kit-small size-8 bg-[url(/hud/sb-alert.webp)]" aria-label="Help: the manual" />
-            <Link href="/board" className="kit-small size-8 bg-[url(/hud/sb-chat.webp)]" aria-label="Comms: the swarm list" />
+            <a href={HPOSPAD_TG_URL} target="_blank" rel="noopener noreferrer" className="kit-small size-8 bg-[url(/hud/sb-chat.webp)]" aria-label="Comms: the Telegram group" title="Telegram" />
             <span className="[&_.wallet-adapter-button]:!h-8">
               <WalletMultiButton />
             </span>
@@ -639,7 +718,7 @@ function GameClock() {
     return () => clearInterval(id)
   }, [])
   return (
-    <span className="kit-small kit-slot absolute -top-8 right-4 hidden h-7 px-3 font-mono text-sm tabular-nums text-foreground md:grid">
+    <span className="kit-small kit-slot absolute -top-7 right-8 z-10 hidden h-7 px-3 font-mono text-sm tabular-nums text-foreground md:grid">
       {Math.floor(t / 60)}:{String(t % 60).padStart(2, '0')}
     </span>
   )
@@ -702,7 +781,13 @@ function SelectionPanel({ token, group, symbol, hatched, onPick }: { token: Toke
           <Readout k="Morph" v={token.status === 'CURVE' ? `${(token.progress * 100).toFixed(1)}%` : token.status === 'COMPLETE' ? 'mutating' : 'done'} />
           <Readout k="24h" v={`${formatCompact(token.volume24hQuote)} ${symbol}`} />
           <Readout k="Creator" v={formatCompact(token.creatorEarnedQuote)} icon wide />
-          <Readout k="CA" v={shortAddress(token.mint)} wide />
+          {/* The contract address, with its copy button (phones too). */}
+          <div className="col-span-2 flex min-w-0 items-center justify-center gap-1 lg:col-span-1">
+            <dt className="shrink-0 text-foreground/60">CA:</dt>
+            <dd>
+              <CopyButton value={token.mint} label={shortAddress(token.mint)} toastText="Contract address copied" className="px-1 py-0 text-foreground" />
+            </dd>
+          </div>
           <Readout k="Dev sold" v={`${Math.round((token.creatorSold ?? 0) * 100)}%`} />
         </dl>
         {token.lifeState === 'RUGGED' && <p className="font-mono text-sm font-bold text-[#ff4a3d]">☠ RUGGED: the creator dumped and it collapsed.</p>}
@@ -733,7 +818,8 @@ function Resources() {
   const sol = useQuery({
     queryKey: ['sol-balance', publicKey?.toBase58()],
     enabled: !!publicKey,
-    refetchInterval: 20_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => (await connection.getBalance(publicKey!)) / 1e9,
   })
   const quote = useTokenBalance(config?.quote.mint ?? '11111111111111111111111111111111')

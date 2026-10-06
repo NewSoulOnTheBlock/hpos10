@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Import freshly ground vanity keypairs into the SERVER's pool.
-#   DEPLOY_HOST=root@45.61.137.13 ./scripts/push-vanity.sh
+#   DEPLOY_HOST=root@168.100.10.26 ./scripts/push-vanity.sh
 # Keypairs are copied over SSH, imported (encrypted into Postgres) on the
 # server, then removed from its disk; locally they move to keys/vanity/pushed/.
 set -euo pipefail

@@ -9,6 +9,7 @@ import { LarvaIcon } from '@/components/sc/icons'
 import { SprotoStrip } from '@/components/sproto-strip'
 import { TradeTicker } from '@/components/trade-ticker'
 import { TokenBoard } from '@/components/token-board'
+import { DistributedStat } from '@/components/distributed-stat'
 
 export const metadata: Metadata = { title: 'The swarm' }
 
@@ -44,6 +45,7 @@ export default function BoardPage() {
             <p className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
               <QuoteIcon className="size-5" /> Every token trades against <span className="kit-cyan">$BITCOIN</span>
             </p>
+            <DistributedStat className="kit-well w-fit max-w-full px-4 py-3" />
           </div>
           <HiveScene className="mx-auto max-w-md" />
         </div>
