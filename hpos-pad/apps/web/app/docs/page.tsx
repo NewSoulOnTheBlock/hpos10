@@ -26,7 +26,7 @@ const SECTIONS = [
   },
   {
     title: 'Paying in SOL or the quote token',
-    body: 'Curves are priced in the quote token, HPOS10I. You can pay with SOL: a Jupiter SOL to HPOS10I swap runs inside the same transaction as the curve buy. Or pay in HPOS10I directly. Sells can pay out in either.',
+    body: 'Curves are priced in the quote token, $BITCOIN. You can pay with SOL: a Jupiter SOL to $BITCOIN swap runs inside the same transaction as the curve buy. Or pay in $BITCOIN directly. Sells can pay out in either.',
   },
   {
     title: 'Fees',
@@ -60,7 +60,7 @@ export default function DocsPage() {
           How <span className="text-[#ffd98a]">The Hatchery</span> works
         </h1>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground sm:text-lg">
-          A token launchpad on Meteora&apos;s Dynamic Bonding Curve, quoted in HPOS10I on Solana. Spawn a token in one
+          A token launchpad on Meteora&apos;s Dynamic Bonding Curve, quoted in $BITCOIN on Solana. Spawn a token in one
           transaction and, as its creator, earn a cut of every trade it makes, before and after it graduates.
         </p>
       </Card>

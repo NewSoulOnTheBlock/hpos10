@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol, QUOTE_TICKER } from '@/lib/quote-display'
+
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -521,7 +523,7 @@ function MapMob({ token, at, selected, onSelect, zoom }: { token: TokenDTO; at: 
             'flex items-center gap-1 whitespace-nowrap rounded-[2px] bg-black/70 px-1.5 py-px font-mono text-[10px] leading-tight',
             paid > 0 ? 'text-[#3dff6a]' : 'text-foreground/45',
           )}
-          title={`${paid.toLocaleString()} HPOS10I paid out by this token`}
+          title={`${paid.toLocaleString()} ${QUOTE_TICKER} paid out by this token`}
         >
           <QuoteIcon className="size-3" />
           {paid > 0 ? `+${formatCompact(paid)}` : '0'} paid
@@ -742,7 +744,7 @@ function Resources() {
       <span className={cn(num, 'left-[17%]')} title="SOL in your wallet">
         {publicKey ? (sol.data ?? 0).toFixed(2) : '—'}
       </span>
-      <span className={cn(num, 'left-[46.5%] flex items-center gap-1')} title={`${config?.quote.symbol ?? 'HPOS10I'} in your wallet`}>
+      <span className={cn(num, 'left-[46.5%] flex items-center gap-1')} title={`${quoteDisplaySymbol(config?.quote.symbol)} in your wallet`}>
         {publicKey && config ? formatCompact(String(quote.data?.ui ?? 0)) : '—'}
       </span>
       <span className={cn(num, 'left-[76.5%]')} title="Swarm: graduated / tokens on the creep">

@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import type { TokenDTO } from '@hpos-pad/shared'
 import { ExternalLink, Globe, Send, Users } from 'lucide-react'
 import { TokenImage } from '@/components/token-image'
@@ -24,7 +26,7 @@ function XIcon({ className }: { className?: string }) {
 export function TokenHeader({ token }: { token: TokenDTO }) {
   const { data: config } = useLaunchpadConfig()
   const reflections = useReflectionsOn()
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const socials = [
     token.website && { href: token.website, label: 'Website', icon: <Globe className="size-4" /> },
     token.twitter && { href: token.twitter, label: 'X', icon: <XIcon className="size-3.5" /> },

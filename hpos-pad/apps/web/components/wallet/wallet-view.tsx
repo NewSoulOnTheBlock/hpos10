@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -34,7 +36,7 @@ export function WalletView({ address }: { address: string }) {
   const { data: config } = useLaunchpadConfig()
   const { data: stats } = useStats()
   const reflectionsOn = useReflectionsOn()
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const isMe = publicKey?.toBase58() === address
   const reflections = useWalletReflections(address)
   const total = reflections.data?.pages[0]?.totalQuote ?? '0'

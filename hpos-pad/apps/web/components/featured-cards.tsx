@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import Link from 'next/link'
 import { BadgeCheck, Crown } from 'lucide-react'
 import { useLaunchpadConfig, useReflectionsOn } from '@/hooks/use-config'
@@ -28,7 +30,7 @@ export function FeaturedCards() {
   return (
     <div className={cn('grid gap-3', cards.length > 1 && 'md:grid-cols-2')}>
       {cards.map((c) => (
-        <FeaturedCard key={c.mint} mint={c.mint} badge={c.badge} Icon={c.Icon} quoteSymbol={config.quote.symbol} />
+        <FeaturedCard key={c.mint} mint={c.mint} badge={c.badge} Icon={c.Icon} quoteSymbol={quoteDisplaySymbol(config.quote.symbol)} />
       ))}
     </div>
   )

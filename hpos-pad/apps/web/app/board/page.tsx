@@ -42,7 +42,7 @@ export default function BoardPage() {
               </Button>
             </div>
             <p className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
-              <QuoteIcon className="size-5" /> Every token trades against <span className="kit-cyan">$HPOS10I</span>
+              <QuoteIcon className="size-5" /> Every token trades against <span className="kit-cyan">$BITCOIN</span>
             </p>
           </div>
           <HiveScene className="mx-auto max-w-md" />

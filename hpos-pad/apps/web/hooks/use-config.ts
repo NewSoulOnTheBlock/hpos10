@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useQuery } from '@tanstack/react-query'
 import { feeSplit, type LaunchpadConfigDTO } from '@hpos-pad/shared'
 import { fetchConfig } from '@/lib/api'
@@ -15,7 +17,7 @@ export function useLaunchpadConfig() {
 
 /** Quote symbol with a sane fallback while /config loads. */
 export function useQuoteSymbol(): string {
-  return useLaunchpadConfig().data?.quote.symbol ?? 'HPOS10I'
+  return quoteDisplaySymbol(useLaunchpadConfig().data?.quote.symbol)
 }
 
 /**
@@ -33,7 +35,7 @@ export function feeShort(cfg: LaunchpadConfigDTO | undefined): string {
   if (!cfg) return ''
   const holders = cfg.fees.reflectionBps > 0 ? ` · ${cfg.fees.reflectionBps / 100}% to holders` : ''
   const creator = cfg.fees.creatorBps > 0 ? ` · ${cfg.fees.creatorBps / 100}% to creator` : ''
-  return `${cfg.fees.tradeFeeBps / 100}% fee in ${cfg.quote.symbol}${creator}${holders}`
+  return `${cfg.fees.tradeFeeBps / 100}% fee in ${quoteDisplaySymbol(cfg.quote.symbol)}${creator}${holders}`
 }
 
 export { feeSplit }

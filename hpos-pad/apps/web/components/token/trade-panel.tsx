@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol, quoteDisplayRoute } from '@/lib/quote-display'
+
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -32,7 +34,7 @@ const QUICK: Record<Side, Record<PayWith, string[]>> = {
 
 export function TradePanel({ token, initialSide = 'BUY' }: { token: TokenDTO; initialSide?: Side }) {
   const { data: config } = useLaunchpadConfig()
-  const quoteSymbol = config?.quote.symbol ?? 'HPOS10I'
+  const quoteSymbol = quoteDisplaySymbol(config?.quote.symbol)
   const { publicKey } = useWallet()
   const { setVisible } = useWalletModal()
   const sendBuilt = useSendBuiltTransaction()
@@ -222,7 +224,7 @@ export function TradePanel({ token, initialSide = 'BUY' }: { token: TokenDTO; in
                 warn={quote.data.priceImpactPct > 5}
               />
             )}
-            <Row label="Route" value={quote.data.route} />
+            <Row label="Route" value={quoteDisplayRoute(quote.data.route)} />
           </>
         ) : null}
       </div>

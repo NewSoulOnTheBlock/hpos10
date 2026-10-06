@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import type { TokenDTO } from '@hpos-pad/shared'
 import { Lock } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -27,7 +29,7 @@ const LADDER = [
 export function CurveCard({ token }: { token: TokenDTO }) {
   const { data: config } = useLaunchpadConfig()
   const reflections = useReflectionsOn()
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   // Every amount on the wire is a decimal string in UI units.
   const threshold = config ? Number(config.curve.migrationQuoteThreshold) : null
   const reserve = Number(token.quoteReserve)
