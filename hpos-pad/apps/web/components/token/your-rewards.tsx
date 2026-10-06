@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useWallet } from '@solana/wallet-adapter-react'
 import type { TokenDTO } from '@hpos-pad/shared'
 import { Card } from '@/components/ui/card'
@@ -24,7 +26,7 @@ export function YourRewards({ token }: { token: TokenDTO }) {
   const { data: balance } = useTokenBalance(token.mint)
   if (!owner || reflections !== true) return null
 
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const row = data?.tokens[0]
   const earned = row?.totalQuote ?? '0'
   const quoteUsd = token.priceUsd && token.priceQuote ? token.priceUsd / token.priceQuote : null

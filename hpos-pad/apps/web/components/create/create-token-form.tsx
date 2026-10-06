@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readLarva, writeLarva } from '@/lib/larva'
 import { AnimatedSprite, LarvaSprite, SpriteSequence } from '@/components/creep/sprites'
@@ -89,7 +91,7 @@ export function CreateTokenForm({ larva = 0 }: { larva?: number }) {
     mode: 'onTouched',
   })
   const { register, handleSubmit, formState, setValue, control } = form
-  const quoteSymbol = config?.quote.symbol ?? 'HPOS10I'
+  const quoteSymbol = quoteDisplaySymbol(config?.quote.symbol)
   const busy = step !== 'idle' && step !== 'done'
 
   // The selected larva's draft: load it once, then keep it saved as you type.
@@ -362,7 +364,7 @@ export function CreateTokenForm({ larva = 0 }: { larva?: number }) {
                 <span className="font-display font-bold uppercase tracking-wide sc-text">
                   You earn {config.fees.creatorBps / 100}% of every trade
                 </span>{' '}
-                on your token, in {config.quote.symbol}, sent to this wallet automatically, before and after graduation.
+                on your token, in {quoteDisplaySymbol(config.quote.symbol)}, sent to this wallet automatically, before and after graduation.
               </p>
             </div>
           )}

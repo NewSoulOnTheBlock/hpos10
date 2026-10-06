@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import type { TokenDTO } from '@hpos-pad/shared'
 import { useLaunchpadConfig } from '@/hooks/use-config'
 import { bpsToPct, formatAmount, formatUsd, num } from '@/lib/format'
@@ -19,7 +21,7 @@ const HEAD = 'mb-2 font-display text-[11px] font-bold uppercase tracking-[0.16em
 export function TokenAbout({ token }: { token: TokenDTO }) {
   const { data: config } = useLaunchpadConfig()
   const f = config?.fees
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const quoteUsd = token.priceUsd && token.priceQuote ? token.priceUsd / token.priceQuote : null
   const holders = !!f && f.reflectionBps > 0
 

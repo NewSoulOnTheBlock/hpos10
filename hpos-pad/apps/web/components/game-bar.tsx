@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
@@ -68,8 +70,8 @@ export function GameBar() {
             <span className="sr-only">SOL </span>
             {publicKey ? (sol.data ?? 0).toFixed(2) : '—'}
           </span>
-          <span className={cn(num, 'left-[46.5%]')} title={`${config?.quote.symbol ?? 'HPOS10I'} in your wallet`}>
-            <span className="sr-only">{config?.quote.symbol ?? 'HPOS10I'} </span>
+          <span className={cn(num, 'left-[46.5%]')} title={`${quoteDisplaySymbol(config?.quote.symbol)} in your wallet`}>
+            <span className="sr-only">{quoteDisplaySymbol(config?.quote.symbol)} </span>
             {publicKey && config ? formatCompact(String(quote.data?.ui ?? 0)) : '—'}
           </span>
           <span className={cn(num, 'left-[76.5%]')} title="Swarm: graduated / tokens on the creep">

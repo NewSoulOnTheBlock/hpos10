@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useLaunchpadConfig } from '@/hooks/use-config'
 import { QuoteIcon } from '@/components/quote-icon'
 import { cn } from '@/lib/utils'
@@ -35,7 +37,7 @@ export function FeeDisclosure({ className }: { className?: string }) {
         <span className="kit-amber">{pct(tradeFeeBps)}</span>
         <span className="text-muted-foreground">in</span>
         <QuoteIcon className="size-3.5" />
-        <span className="text-foreground">{data.quote.symbol}</span>
+        <span className="text-foreground">{quoteDisplaySymbol(data.quote.symbol)}</span>
       </p>
       <p className="flex flex-wrap gap-x-1.5 text-muted-foreground">
         {parts.map((p, i) => (

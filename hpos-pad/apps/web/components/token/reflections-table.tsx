@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import type { TokenDTO } from '@hpos-pad/shared'
 import { ShieldCheck } from 'lucide-react'
 import { useTokenReflections } from '@/hooks/use-tokens'
@@ -19,7 +21,7 @@ const STATUS_VARIANT = { DONE: 'success', DISTRIBUTING: 'warning', CLAIMED: 'mut
 /** The reflection ledger: every claim, how it was split, and where it went. */
 export function ReflectionsTable({ token }: { token: TokenDTO }) {
   const { data: config } = useLaunchpadConfig()
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const query = useTokenReflections(token.mint)
   const epochs = query.data?.pages.flatMap((p) => p.items) ?? []
 

@@ -427,9 +427,9 @@ export default function ApiDocsPage() {
             <dd>Solana mainnet. Pools are Meteora Dynamic Bonding Curve, then DAMM v2.</dd>
           </dl>
           <p>
-            The quote token is <strong className="kit-cyan">HPOS10I on Solana</strong>: the quote mint (see{' '}
-            <C>GET /config</C>, <C>quote.mint</C>). Fees, prices, reserves and payouts are all in HPOS10I. Buys can be
-            paid in SOL (a Jupiter SOL→HPOS10I leg inside the same transaction) or in HPOS10I directly (
+            The quote token is <strong className="kit-cyan">$BITCOIN on Solana</strong>: the quote mint (see{' '}
+            <C>GET /config</C>, <C>quote.mint</C>). Fees, prices, reserves and payouts are all in $BITCOIN. Buys can be
+            paid in SOL (a Jupiter SOL→$BITCOIN leg inside the same transaction) or in $BITCOIN directly (
             <C>payWith: &apos;QUOTE&apos;</C>). The quote mint may be a legacy SPL Token or a Token-2022 mint; the
             built transactions handle either, so read <C>quote.decimals</C> rather than assuming them.
           </p>
@@ -492,7 +492,7 @@ export default function ApiDocsPage() {
             code={`{ "transaction": "<base64 v0 tx>", "lastValidBlockHeight": 429320148,
   "mint": "…hpos", "mintSigned": true,
   "quote": { "inAmount": "0.1", "outAmount": "…", "minOut": "…", "feeQuote": "…",
-             "priceImpactPct": 0, "route": "SOL > HPOS10I (Jupiter) > Meteora DBC" },
+             "priceImpactPct": 0, "route": "SOL > $BITCOIN (Jupiter) > Meteora DBC" },
   "preTransactions": ["<base64 v0 tx>"] }`}
             title="response"
           />
@@ -508,7 +508,7 @@ export default function ApiDocsPage() {
             Deserialize with <C>VersionedTransaction.deserialize</C>, sign with your wallet, send, and confirm. If the
             response has <C>preTransactions</C>, sign, send and{' '}
             <strong className="text-foreground">confirm each one first</strong>, in order, and only then send{' '}
-            <C>transaction</C>. This happens when a SOL leg does not fit in one transaction: the SOL→HPOS10I swap lands
+            <C>transaction</C>. This happens when a SOL leg does not fit in one transaction: the SOL→$BITCOIN swap lands
             first, then the create + first buy spends exactly what the swap guaranteed. The main transaction cannot be
             simulated before its pre-transaction lands, so the server only size-checks it.
           </p>
@@ -528,12 +528,12 @@ export default function ApiDocsPage() {
               <C>side</C>: <C>BUY</C> or <C>SELL</C>.
             </li>
             <li>
-              <C>amount</C>: a decimal string in UI units of what you pay in. For buys that is SOL or HPOS10I (per{' '}
+              <C>amount</C>: a decimal string in UI units of what you pay in. For buys that is SOL or $BITCOIN (per{' '}
               <C>payWith</C>); for sells it is the token. Digits beyond the asset&apos;s decimals are truncated (SOL 9,
               the quote per <C>quote.decimals</C>, tokens 6).
             </li>
             <li>
-              <C>payWith</C>: <C>SOL</C> or <C>QUOTE</C> (HPOS10I). For sells it is what you receive.
+              <C>payWith</C>: <C>SOL</C> or <C>QUOTE</C> ($BITCOIN). For sells it is what you receive.
             </li>
             <li>
               <C>slippageBps</C>: 10 to 5000, default 300 (3%).
@@ -541,9 +541,9 @@ export default function ApiDocsPage() {
           </ul>
           <p>
             The quote is a <C>TradeQuote</C>: <C>inAmount</C>, <C>outAmount</C>, <C>minOut</C> (after slippage),{' '}
-            <C>feeQuote</C> (HPOS10I), <C>priceImpactPct</C> and a readable <C>route</C>. Sending the built transaction
+            <C>feeQuote</C> ($BITCOIN), <C>priceImpactPct</C> and a readable <C>route</C>. Sending the built transaction
             works exactly like a spawn, including <C>preTransactions</C> (for sells paid out in SOL, the curve sell
-            lands first and the HPOS10I→SOL swap second).
+            lands first and the $BITCOIN→SOL swap second).
           </p>
           <ul className="list-disc space-y-0.5 pl-5 marker:text-phosphor">
             <li>
@@ -653,14 +653,14 @@ export default function ApiDocsPage() {
           <Table
             head={['Parameter', 'Default']}
             rows={[
-              ['fees.tradeFeeBps', '160: 1.6% of the quote side of every trade, in HPOS10I (fixed in the DBC config)'],
+              ['fees.tradeFeeBps', '160: 1.6% of the quote side of every trade, in $BITCOIN (fixed in the DBC config)'],
               ['fees.creatorBps', '75: 0.75% to the wallet that spawned the token'],
               ['fees.platformBps', '53: 0.53% platform treasury'],
               ['fees.protocolBps', '32: 0.32% Meteora protocol (20% of the fee, fixed)'],
               ['fees.reflectionBps', '0: holder reflections off (taken from the platform share when on)'],
-              ['quote', 'HPOS10I on Solana: the quote mint (see GET /config), SPL Token or Token-2022'],
+              ['quote', '$BITCOIN on Solana: the quote mint (see GET /config), SPL Token or Token-2022'],
               ['token', '1,000,000,000 supply, 6 decimals, no mint authority'],
-              ['curve.migrationQuoteThreshold', 'HPOS10I the curve must raise to graduate; set per deployment'],
+              ['curve.migrationQuoteThreshold', '$BITCOIN the curve must raise to graduate; set per deployment'],
             ]}
           />
           <ol className="list-decimal space-y-1 pl-5 marker:font-mono marker:text-phosphor">
@@ -681,14 +681,14 @@ export default function ApiDocsPage() {
           </ol>
           <p>
             Every few minutes the platform claims each token&apos;s fee and splits it in software. The creator share goes
-            straight to the <C>creator</C> wallet in HPOS10I and the platform share to the treasury; each claim is
+            straight to the <C>creator</C> wallet in $BITCOIN and the platform share to the treasury; each claim is
             published at <C>/tokens/:mint/reflections</C> (<C>creatorQuote</C>, <C>platformQuote</C>) and totals show
             as <C>creatorEarnedQuote</C> on the token and <C>creatorTotalQuote</C> at{' '}
             <C>/wallets/:address/earnings</C>. This works the same before and after graduation.
           </p>
           <p>
             Holder reflections are off by default (<C>reflectionBps: 0</C>). If an operator turns them on, the holder
-            share of each claim is paid to every holder pro-rata in HPOS10I, automatically, with no claim step. Shares
+            share of each claim is paid to every holder pro-rata in $BITCOIN, automatically, with no claim step. Shares
             too small to send carry over and show at <C>GET /wallets/:address/claimable</C>; a holder can withdraw
             them early with <C>POST /claims/build</C> (<C>{'{ owner }'}</C>), signing the vault-signed transaction as
             fee payer and reporting it with <C>{'POST /claims/:id/confirm { signature }'}</C>.

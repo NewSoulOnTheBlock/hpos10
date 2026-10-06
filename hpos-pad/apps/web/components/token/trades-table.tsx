@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import type { TokenDTO } from '@hpos-pad/shared'
 import { useTokenTrades } from '@/hooks/use-tokens'
 import { useLaunchpadConfig } from '@/hooks/use-config'
@@ -20,7 +22,7 @@ export const TR = 'border-t border-[#2c2925] transition-colors hover:bg-phosphor
 /** The token's comms log: every buy and sell, newest first. */
 export function TradesTable({ token }: { token: TokenDTO }) {
   const { data: config } = useLaunchpadConfig()
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   const query = useTokenTrades(token.mint)
   const trades = query.data?.pages.flatMap((p) => p.items) ?? []
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { QuoteIcon } from '@/components/quote-icon'
 import { useClaimable } from '@/hooks/use-claim'
 import { useLaunchpadConfig } from '@/hooks/use-config'
@@ -14,7 +16,7 @@ import { cn } from '@/lib/utils'
 export function ClaimPanel({ address, quoteUsd, className }: { address: string; quoteUsd: number | null; className?: string }) {
   const { data: config } = useLaunchpadConfig()
   const { data } = useClaimable(address)
-  const q = config?.quote.symbol ?? 'HPOS10I'
+  const q = quoteDisplaySymbol(config?.quote.symbol)
   if (!data) return null
   const pending = num(data.claimableQuote) + (data.pending ? num(data.pending.amountQuote) : 0)
   if (pending <= 0) return null

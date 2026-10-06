@@ -26,7 +26,7 @@ export function base64ToBytes(b64: string): Uint8Array {
 export function describeTxError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   if (/user rejected|rejected the request|denied/i.test(msg)) return 'You rejected the transaction in your wallet.'
-  if (/insufficient (funds|lamports)|0x1\b/i.test(msg)) return 'You require more minerals. (Not enough SOL or HPOS10I to cover this and network fees.)'
+  if (/insufficient (funds|lamports)|0x1\b/i.test(msg)) return 'You require more minerals. (Not enough SOL or $BITCOIN to cover this and network fees.)'
   if (/slippage|0x1771|ExceededSlippage|exceeds desired slippage/i.test(msg)) return 'Price moved beyond your slippage. Try again or raise slippage.'
   if (/block height exceeded|expired/i.test(msg)) return 'The transaction expired before landing. Please try again.'
   return msg.length > 180 ? `${msg.slice(0, 180)}…` : msg

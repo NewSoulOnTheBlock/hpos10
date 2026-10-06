@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AreaSeries,
@@ -58,7 +60,7 @@ export function McapChart({ token }: { token: TokenDTO }) {
   const range = RANGES[rangeIdx]!
   const { data, isLoading, isError } = useCandles(token.mint, range.tf)
   const { data: config } = useLaunchpadConfig()
-  const symbol = config?.quote.symbol ?? 'HPOS10I'
+  const symbol = quoteDisplaySymbol(config?.quote.symbol)
 
   // USD per quote unit, derived from the token's own live prices.
   const quoteUsd = token.priceUsd && token.priceQuote ? token.priceUsd / token.priceQuote : null

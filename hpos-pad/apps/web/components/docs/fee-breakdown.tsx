@@ -1,5 +1,7 @@
 'use client'
 
+import { quoteDisplaySymbol } from '@/lib/quote-display'
+
 import { useLaunchpadConfig } from '@/hooks/use-config'
 import { QuoteIcon } from '@/components/quote-icon'
 import { bpsToPct } from '@/lib/format'
@@ -27,7 +29,7 @@ export function FeeBreakdown() {
             <span className="text-foreground">fee in</span>
             <span className="inline-flex items-center gap-1.5 font-mono kit-cyan">
               <QuoteIcon className="size-5" />
-              {config.quote.symbol}
+              {quoteDisplaySymbol(config.quote.symbol)}
             </span>
           </p>
         </div>
